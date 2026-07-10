@@ -1,0 +1,29 @@
+{
+  "dev": {
+    "namespace": "myorg",
+    "network": "myapp-dev",
+    "env": [
+      { "name": "API_HOST", "value": "api.localhost" },
+      { "name": "API_BASE_URL", "value": "http://${API_HOST}" }
+    ],
+    "containers": [
+      {
+        "id": "api",
+        "image": "my-api",
+        "env": [{ "name": "NODE_ENV", "value": "development" }]
+      }
+    ]
+  },
+  "prod": {
+    "namespace": "myorg",
+    "network": "myapp",
+    "tag": "prod",
+    "containers": [
+      {
+        "id": "api",
+        "image": "my-api",
+        "env": [{ "name": "NODE_ENV", "value": "production" }]
+      }
+    ]
+  }
+}

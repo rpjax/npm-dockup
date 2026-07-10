@@ -1,0 +1,83 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://raw.githubusercontent.com/rpjax/npm-dockup/main/schema/dockup.schema.json",
+  "title": "dockup configuration",
+  "description": "Root object maps environment names to deploy settings.",
+  "type": "object",
+  "minProperties": 1,
+  "additionalProperties": {
+    "$ref": "#/$defs/environment"
+  },
+  "$defs": {
+    "nameValue": {
+      "type": "object",
+      "required": ["name", "value"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "value": { "type": ["string", "number", "boolean"] },
+        "global": { "type": "boolean" }
+      }
+    },
+    "port": {
+      "type": "object",
+      "required": ["host", "container"],
+      "additionalProperties": false,
+      "properties": {
+        "host": { "type": ["integer", "string"] },
+        "container": { "type": ["integer", "string"] }
+      }
+    },
+    "volume": {
+      "type": "object",
+      "required": ["container"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "host": { "type": "string", "minLength": 1 },
+        "container": { "type": "string", "minLength": 1 }
+      },
+      "oneOf": [{ "required": ["name"] }, { "required": ["host"] }]
+    },
+    "container": {
+      "type": "object",
+      "required": ["id", "image"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "image": { "type": "string", "minLength": 1 },
+        "context": { "type": "string", "minLength": 1 },
+        "dockerfile": { "type": "string", "minLength": 1 },
+        "env": { "type": "array", "items": { "$ref": "#/$defs/nameValue" } },
+        "buildArgs": { "type": "array", "items": { "$ref": "#/$defs/nameValue" } },
+        "ports": { "type": "array", "items": { "$ref": "#/$defs/port" } },
+        "expose": {
+          "type": "array",
+          "items": { "type": ["integer", "string"] }
+        },
+        "volumes": { "type": "array", "items": { "$ref": "#/$defs/volume" } },
+        "dependsOn": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "environment": {
+      "type": "object",
+      "required": ["namespace", "network", "containers"],
+      "additionalProperties": false,
+      "properties": {
+        "namespace": { "type": "string", "minLength": 1 },
+        "network": { "type": "string", "minLength": 1 },
+        "tag": { "type": "string", "minLength": 1 },
+        "registry": { "type": "string", "minLength": 1 },
+        "env": { "type": "array", "items": { "$ref": "#/$defs/nameValue" } },
+        "containers": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/container" }
+        }
+      }
+    }
+  }
+}

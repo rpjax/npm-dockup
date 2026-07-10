@@ -1,0 +1,39 @@
+services:
+  gateway:
+    image: ${DOCKER_IMAGE_ROOT}/my-gateway:${DOCKER_TAG}
+    container_name: gateway
+    restart: unless-stopped
+    networks:
+      - stack
+    ports:
+      - 80:80
+      - 443:443
+    environment:
+      FRONTEND_HOST: app.example.com
+      BACKEND_HOST: api.example.com
+      FRONTEND_UPSTREAM: http://web:80
+      BACKEND_UPSTREAM: http://api:8080
+    depends_on:
+      - api
+      - web
+  api:
+    image: ${DOCKER_IMAGE_ROOT}/my-api:${DOCKER_TAG}
+    container_name: api
+    restart: unless-stopped
+    networks:
+      - stack
+    expose:
+      - "8080"
+    environment:
+      NODE_ENV: production
+  web:
+    image: ${DOCKER_IMAGE_ROOT}/my-web:${DOCKER_TAG}
+    container_name: web
+    restart: unless-stopped
+    networks:
+      - stack
+    expose:
+      - "80"
+networks:
+  stack:
+    name: stack

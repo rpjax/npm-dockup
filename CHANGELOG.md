@@ -1,0 +1,59 @@
+# Changelog
+
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [1.1.0] - 2026-07-10
+
+### Added
+
+- Commander-based CLI parsing with native subcommand help (`dockup deploy --help`, etc.)
+- listr2 task pipeline for interactive `deploy` output
+- picocolors for terminal styling in the logger
+
+### Changed
+
+- Deploy default output shows a visual task list instead of step-by-step log lines
+- Internal CLI structure: `program.ts`, `options.ts`, `context.ts`, `deploy-tasks.ts`
+
+### Removed
+
+- Manual argument parser (`parser.ts`) and static help (`help.ts`)
+
+No breaking CLI syntax changes.
+
+### Fixed
+
+- Global flag merge in error paths (`--json` on subcommands)
+- Quiet deploy summary leak
+- Duplicate failure output after listr2 task errors
+- `init` help no longer advertises unused `--config` / `--root`
+
+## [1.0.0] - 2026-07-10
+
+### Added
+
+- TypeScript CLI with subcommands: `deploy`, `validate`, `init`
+- Modern flags: `--env`, `--config`, `--root`, `--only`, `--skip-build`, `--skip-push`, `--generate-only`, `--dry-run`, `--json`
+- Config format `*.dockup.json` with JSON Schema validation
+- Multi-registry support via optional `registry` per environment
+- Compose generation using YAML library
+- GitHub Actions CI and tag-based npm publish workflow
+- Documentation in `docs/`
+
+### Changed
+
+- **Breaking:** replaced `env=prod` syntax with `dockup deploy --env prod`
+- **Breaking:** renamed config suffix from `*.deploy.json` to `*.dockup.json`
+- **Breaking:** `network` is now required (no default)
+- **Breaking:** build contexts resolve from `--root` (default `.`) instead of parent directory
+
+### Removed
+
+- Legacy JavaScript monolith (`deploy.mjs`, `dockup.mjs`)
+- Project-specific Nexus example config
+
+[1.1.0]: https://github.com/rpjax/npm-dockup/releases/tag/v1.1.0
+[1.0.0]: https://github.com/rpjax/npm-dockup/releases/tag/v1.0.0

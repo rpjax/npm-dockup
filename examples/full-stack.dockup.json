@@ -1,0 +1,82 @@
+{
+  "dev": {
+    "namespace": "myorg",
+    "network": "stack-dev",
+    "env": [
+      { "name": "FRONTEND_HOST", "value": "app.localhost" },
+      { "name": "BACKEND_HOST", "value": "api.localhost" },
+      { "name": "API_BASE_URL", "value": "http://${BACKEND_HOST}" }
+    ],
+    "containers": [
+      {
+        "id": "gateway",
+        "image": "my-gateway",
+        "context": "examples/full-stack/gateway",
+        "ports": [{ "host": 8080, "container": 80 }],
+        "env": [
+          { "name": "FRONTEND_HOST", "value": "${FRONTEND_HOST}" },
+          { "name": "BACKEND_HOST", "value": "${BACKEND_HOST}" },
+          { "name": "FRONTEND_UPSTREAM", "value": "http://web:80" },
+          { "name": "BACKEND_UPSTREAM", "value": "http://api:8080" }
+        ],
+        "dependsOn": ["api", "web"]
+      },
+      {
+        "id": "api",
+        "image": "my-api",
+        "context": "examples/full-stack/api",
+        "expose": [8080],
+        "env": [{ "name": "NODE_ENV", "value": "development" }]
+      },
+      {
+        "id": "web",
+        "image": "my-web",
+        "context": "examples/full-stack/web",
+        "expose": [80],
+        "buildArgs": [{ "name": "API_BASE_URL", "value": "${API_BASE_URL}" }]
+      }
+    ]
+  },
+  "prod": {
+    "namespace": "myorg",
+    "network": "stack",
+    "registry": "ghcr.io",
+    "env": [
+      { "name": "FRONTEND_HOST", "value": "app.example.com" },
+      { "name": "BACKEND_HOST", "value": "api.example.com" },
+      { "name": "API_BASE_URL", "value": "https://${BACKEND_HOST}" }
+    ],
+    "containers": [
+      {
+        "id": "gateway",
+        "image": "my-gateway",
+        "context": "examples/full-stack/gateway",
+        "ports": [
+          { "host": 80, "container": 80 },
+          { "host": 443, "container": 443 }
+        ],
+        "env": [
+          { "name": "FRONTEND_HOST", "value": "${FRONTEND_HOST}" },
+          { "name": "BACKEND_HOST", "value": "${BACKEND_HOST}" },
+          { "name": "FRONTEND_UPSTREAM", "value": "http://web:80" },
+          { "name": "BACKEND_UPSTREAM", "value": "http://api:8080" }
+        ],
+        "dependsOn": ["api", "web"]
+      },
+      {
+        "id": "api",
+        "image": "my-api",
+        "context": "examples/full-stack/api",
+        "expose": [8080],
+        "env": [{ "name": "NODE_ENV", "value": "production" }]
+      },
+      {
+        "id": "web",
+        "image": "my-web",
+        "context": "examples/full-stack/web",
+        "expose": [80],
+        "buildArgs": [{ "name": "API_BASE_URL", "value": "${API_BASE_URL}" }]
+      }
+    ]
+  }
+}

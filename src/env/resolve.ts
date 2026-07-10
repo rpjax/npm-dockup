@@ -1,48 +1,47 @@
-const REF_SOURCE = "\\$\\{([A-Za-z_][A-Za-z0-9_]*)\\}";
+import { ResolveError } from "../errors/index.js";
 
-function refPattern() {
+const REF_SOURCE = String.raw`\$\{([A-Za-z_][A-Za-z0-9_]*)\}`;
+
+function refPattern(): RegExp {
   return new RegExp(REF_SOURCE, "g");
 }
 
-export class ResolveError extends Error {
-  constructor(message, { type, cycle } = {}) {
-    super(message);
-    this.name = "ResolveError";
-    this.type = type;
-    this.cycle = cycle;
-  }
-}
-
-export function extractReferences(value) {
-  const refs = [];
+export function extractReferences(value: unknown): string[] {
+  const refs: string[] = [];
   const text = String(value ?? "");
   for (const match of text.matchAll(refPattern())) {
-    refs.push(match[1]);
+    refs.push(match[1]!);
   }
   return refs;
 }
 
-export function interpolate(value, symbols) {
-  return String(value ?? "").replace(refPattern(), (_, name) => {
+export function interpolate(value: unknown, symbols: Map<string, string>): string {
+  return String(value ?? "").replace(refPattern(), (_, name: string) => {
     if (!symbols.has(name)) {
       throw new ResolveError(`Unresolved symbol "${name}".`, { type: "missing" });
     }
-    return symbols.get(name);
+    return symbols.get(name)!;
   });
 }
 
-export function resolveEnvironmentEnv(entries = []) {
-  const entryMap = new Map();
+interface EnvEntry {
+  name: string;
+  value: string | number | boolean;
+  global?: boolean;
+}
+
+export function resolveEnvironmentEnv(entries: EnvEntry[] = []): Map<string, string> {
+  const entryMap = new Map<string, EnvEntry>();
   for (const entry of entries) {
     entryMap.set(entry.name, entry);
   }
 
-  const resolved = new Map();
-  const visiting = new Set();
+  const resolved = new Map<string, string>();
+  const visiting = new Set<string>();
 
-  function resolveName(name, stack = []) {
+  function resolveName(name: string, stack: string[] = []): string {
     if (resolved.has(name)) {
-      return resolved.get(name);
+      return resolved.get(name)!;
     }
 
     if (visiting.has(name)) {
@@ -59,7 +58,7 @@ export function resolveEnvironmentEnv(entries = []) {
     }
 
     visiting.add(name);
-    const entry = entryMap.get(name);
+    const entry = entryMap.get(name)!;
     for (const ref of extractReferences(entry.value)) {
       resolveName(ref, [...stack, name]);
     }
@@ -77,19 +76,26 @@ export function resolveEnvironmentEnv(entries = []) {
   return resolved;
 }
 
-export function resolveContainerEnv(containerEnv = [], envSymbols) {
+export function resolveContainerEnv(
+  containerEnv: EnvEntry[] = [],
+  envSymbols: Map<string, string>,
+): Array<{ name: string; value: string }> {
   return containerEnv.map((entry) => ({
     name: entry.name,
     value: interpolate(entry.value, envSymbols),
   }));
 }
 
-export function composeRuntimeEnv(environmentEnv = [], containerEnv = [], envSymbols) {
-  const runtime = new Map();
+export function composeRuntimeEnv(
+  environmentEnv: EnvEntry[] = [],
+  containerEnv: EnvEntry[] = [],
+  envSymbols: Map<string, string>,
+): Array<{ name: string; value: string }> {
+  const runtime = new Map<string, string>();
 
   for (const entry of environmentEnv) {
     if (entry.global === true) {
-      runtime.set(entry.name, envSymbols.get(entry.name));
+      runtime.set(entry.name, envSymbols.get(entry.name) ?? "");
     }
   }
 
@@ -100,7 +106,10 @@ export function composeRuntimeEnv(environmentEnv = [], containerEnv = [], envSym
   return [...runtime.entries()].map(([name, value]) => ({ name, value }));
 }
 
-export function resolveBuildArgs(buildArgs = [], envSymbols) {
+export function resolveBuildArgs(
+  buildArgs: EnvEntry[] = [],
+  envSymbols: Map<string, string>,
+): Array<{ name: string; value: string }> {
   return buildArgs.map((arg) => ({
     name: arg.name,
     value: interpolate(arg.value, envSymbols),
