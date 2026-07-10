@@ -5,7 +5,7 @@
 [![CI](https://github.com/rpjax/npm-dockup/actions/workflows/ci.yml/badge.svg)](https://github.com/rpjax/npm-dockup/actions/workflows/ci.yml)
 [![npm](https://img.shields.io/npm/v/@rodrigopjax/dockup.svg)](https://www.npmjs.com/package/@rodrigopjax/dockup)
 
-**Package:** `@rodrigopjax/dockup` **v2.0.0** · **Binary:** `dockup` · **Node:** `>=18` · **License:** MIT
+**Package:** `@rodrigopjax/dockup` **v2.0.1** · **Binary:** `dockup` · **Node:** `>=18` · **License:** MIT
 
 > **v2.0** is Compose-complete: `imageRef`, healthchecks, `dependsOn` conditions, multi-network/volume, labels, resource limits, and a `compose` escape hatch. Upgrading from v1.x? See [docs/migration-v2.md](docs/migration-v2.md).
 
@@ -276,7 +276,7 @@ flowchart LR
 
 ```bash
 npm install -g @rodrigopjax/dockup
-dockup --version   # 2.0.0
+dockup --version   # 2.0.1
 ```
 
 Or run without installing:
@@ -1029,12 +1029,12 @@ npm run lint
 
 ## Release
 
-**Current:** `@rodrigopjax/dockup@2.0.0` on [npm](https://www.npmjs.com/package/@rodrigopjax/dockup).
+**Current:** `@rodrigopjax/dockup@2.0.1` on [npm](https://www.npmjs.com/package/@rodrigopjax/dockup).
 
 Published automatically on semver tag push:
 
 ```bash
-git tag v2.0.0
+git tag v2.0.1
 git push origin main --tags
 ```
 

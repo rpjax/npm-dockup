@@ -1,6 +1,6 @@
 {
   "name": "@rodrigopjax/dockup",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "Professional Docker deploy CLI — build, push, and generate compose artifacts from *.dockup.json",
   "type": "module",
   "bin": {

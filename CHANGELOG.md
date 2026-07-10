@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.1] - 2026-07-10
+
+### Changed
+
+- Complete README: package contents, shipped examples catalog, full field reference, dependsOn & healthcheck guide
+- npm package ships `docs/` and `CHANGELOG.md` alongside examples and schema
+
 ## [2.0.0] - 2026-07-10
 
 ### Added
@@ -80,6 +87,7 @@ No breaking CLI syntax changes.
 - Legacy JavaScript monolith (`deploy.mjs`, `dockup.mjs`)
 - Project-specific Nexus example config
 
+[2.0.1]: https://github.com/rpjax/npm-dockup/releases/tag/v2.0.1
 [2.0.0]: https://github.com/rpjax/npm-dockup/releases/tag/v2.0.0
 [1.1.0]: https://github.com/rpjax/npm-dockup/releases/tag/v1.1.0
 [1.0.0]: https://github.com/rpjax/npm-dockup/releases/tag/v1.0.0
