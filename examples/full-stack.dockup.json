@@ -19,7 +19,7 @@
           { "name": "FRONTEND_UPSTREAM", "value": "http://web:80" },
           { "name": "BACKEND_UPSTREAM", "value": "http://api:8080" }
         ],
-        "dependsOn": ["api", "web"]
+        "dependsOn": [{ "id": "api" }, { "id": "web" }]
       },
       {
         "id": "api",
@@ -61,7 +61,7 @@
           { "name": "FRONTEND_UPSTREAM", "value": "http://web:80" },
           { "name": "BACKEND_UPSTREAM", "value": "http://api:8080" }
         ],
-        "dependsOn": ["api", "web"]
+        "dependsOn": [{ "id": "api" }, { "id": "web" }]
       },
       {
         "id": "api",

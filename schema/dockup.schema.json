@@ -35,20 +35,110 @@
       "properties": {
         "name": { "type": "string", "minLength": 1 },
         "host": { "type": "string", "minLength": 1 },
-        "container": { "type": "string", "minLength": 1 }
+        "container": { "type": "string", "minLength": 1 },
+        "readOnly": { "type": "boolean" }
       },
-      "oneOf": [{ "required": ["name"] }, { "required": ["host"] }]
+      "oneOf": [{ "required": ["name"] }, { "required": ["host"] }],
+      "not": {
+        "allOf": [{ "required": ["name"] }, { "required": ["host"] }]
+      }
+    },
+    "dependsOnEntry": {
+      "type": "object",
+      "required": ["id"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "condition": {
+          "type": "string",
+          "enum": ["service_started", "service_healthy", "service_completed_successfully"]
+        }
+      }
+    },
+    "healthcheck": {
+      "type": "object",
+      "required": ["test"],
+      "additionalProperties": false,
+      "properties": {
+        "test": {
+          "oneOf": [
+            { "type": "string", "minLength": 1 },
+            {
+              "type": "array",
+              "minItems": 1,
+              "items": { "type": "string" }
+            }
+          ]
+        },
+        "interval": { "type": "string", "minLength": 1 },
+        "timeout": { "type": "string", "minLength": 1 },
+        "retries": { "type": "integer", "minimum": 0 },
+        "startPeriod": { "type": "string", "minLength": 1 }
+      }
+    },
+    "networkAttachment": {
+      "type": "object",
+      "required": ["name"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "aliases": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "extraHost": {
+      "type": "object",
+      "required": ["host", "ip"],
+      "additionalProperties": false,
+      "properties": {
+        "host": { "type": "string", "minLength": 1 },
+        "ip": { "type": "string", "minLength": 1 }
+      }
+    },
+    "networkDefinition": {
+      "type": "object",
+      "required": ["name"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "driver": { "type": "string", "minLength": 1 },
+        "external": { "type": "boolean" },
+        "internal": { "type": "boolean" }
+      }
+    },
+    "volumeDefinition": {
+      "type": "object",
+      "required": ["name"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "external": { "type": "boolean" },
+        "driver": { "type": "string", "minLength": 1 },
+        "driverOpts": {
+          "type": "object",
+          "additionalProperties": { "type": "string" }
+        }
+      }
     },
     "container": {
       "type": "object",
-      "required": ["id", "image"],
+      "required": ["id"],
       "additionalProperties": false,
       "properties": {
         "id": { "type": "string", "minLength": 1 },
         "image": { "type": "string", "minLength": 1 },
+        "imageRef": { "type": "string", "minLength": 1 },
         "context": { "type": "string", "minLength": 1 },
         "dockerfile": { "type": "string", "minLength": 1 },
+        "platform": { "type": "string", "minLength": 1 },
+        "buildTarget": { "type": "string", "minLength": 1 },
         "env": { "type": "array", "items": { "$ref": "#/$defs/nameValue" } },
+        "envFile": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
         "buildArgs": { "type": "array", "items": { "$ref": "#/$defs/nameValue" } },
         "ports": { "type": "array", "items": { "$ref": "#/$defs/port" } },
         "expose": {
@@ -58,8 +148,73 @@
         "volumes": { "type": "array", "items": { "$ref": "#/$defs/volume" } },
         "dependsOn": {
           "type": "array",
+          "items": { "$ref": "#/$defs/dependsOnEntry" }
+        },
+        "command": {
+          "oneOf": [{ "type": "string" }, { "type": "array", "items": { "type": "string" } }]
+        },
+        "entrypoint": {
+          "oneOf": [{ "type": "string" }, { "type": "array", "items": { "type": "string" } }]
+        },
+        "labels": {
+          "oneOf": [
+            {
+              "type": "array",
+              "items": { "type": "string", "minLength": 1 }
+            },
+            {
+              "type": "object",
+              "additionalProperties": { "type": "string" }
+            }
+          ]
+        },
+        "healthcheck": { "$ref": "#/$defs/healthcheck" },
+        "restart": { "type": "string", "minLength": 1 },
+        "profiles": {
+          "type": "array",
           "items": { "type": "string", "minLength": 1 }
-        }
+        },
+        "init": { "type": "boolean" },
+        "user": { "type": "string", "minLength": 1 },
+        "workingDir": { "type": "string", "minLength": 1 },
+        "privileged": { "type": "boolean" },
+        "capAdd": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "capDrop": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "shmSize": { "type": "string", "minLength": 1 },
+        "memLimit": { "type": "string", "minLength": 1 },
+        "memswapLimit": { "type": "string", "minLength": 1 },
+        "cpus": { "type": ["number", "string"] },
+        "cpuShares": { "type": "integer", "minimum": 0 },
+        "pidsLimit": { "type": "integer", "minimum": 0 },
+        "networks": {
+          "oneOf": [
+            {
+              "type": "array",
+              "items": { "type": "string", "minLength": 1 }
+            },
+            {
+              "type": "array",
+              "items": { "$ref": "#/$defs/networkAttachment" }
+            }
+          ]
+        },
+        "hostname": { "type": "string", "minLength": 1 },
+        "domainname": { "type": "string", "minLength": 1 },
+        "extraHosts": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/extraHost" }
+        },
+        "compose": { "type": "object" }
+      },
+      "oneOf": [{ "required": ["image"] }, { "required": ["imageRef"] }],
+      "not": {
+        "allOf": [{ "required": ["image"] }, { "required": ["imageRef"] }]
       }
     },
     "environment": {
@@ -69,9 +224,18 @@
       "properties": {
         "namespace": { "type": "string", "minLength": 1 },
         "network": { "type": "string", "minLength": 1 },
+        "networks": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/networkDefinition" }
+        },
+        "volumes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/volumeDefinition" }
+        },
         "tag": { "type": "string", "minLength": 1 },
         "registry": { "type": "string", "minLength": 1 },
         "env": { "type": "array", "items": { "$ref": "#/$defs/nameValue" } },
+        "compose": { "type": "object" },
         "containers": {
           "type": "array",
           "minItems": 1,

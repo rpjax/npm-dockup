@@ -11,9 +11,32 @@ export function imageReference(
   container: ContainerConfig,
   tag: string,
 ): string {
-  return `${imageRoot(resolved)}/${container.image}:${tag}`;
+  const imageName = container.image?.trim();
+  if (!imageName) {
+    throw new Error(`Container "${container.id}" needs "image" for build/push.`);
+  }
+  return `${imageRoot(resolved)}/${imageName}:${tag}`;
 }
 
-export function hasBuildContext(container: ContainerConfig): boolean {
-  return Boolean(container.context?.trim());
+export function isPullOnly(container: ContainerConfig): boolean {
+  return Boolean(container.imageRef?.trim()) && !container.context?.trim();
+}
+
+export function shouldBuild(container: ContainerConfig): boolean {
+  return Boolean(container.context?.trim()) && !isPullOnly(container);
+}
+
+export function shouldPush(container: ContainerConfig): boolean {
+  return shouldBuild(container);
+}
+
+export function resolveComposeImage(container: ContainerConfig): string {
+  if (container.imageRef?.trim()) {
+    return container.imageRef.trim();
+  }
+  const imageName = container.image?.trim();
+  if (!imageName) {
+    throw new Error(`Container "${container.id}" needs "image" or "imageRef".`);
+  }
+  return `\${DOCKER_IMAGE_ROOT}/${imageName}:\${DOCKER_TAG}`;
 }

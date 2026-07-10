@@ -2,8 +2,30 @@ import { join } from "node:path";
 import type { ContainerConfig, NameValueEntry, ResolvedEnvironment } from "../config/types.js";
 import { resolveBuildArgs, resolveEnvironmentEnv } from "../env/resolve.js";
 import type { Logger } from "../logger/index.js";
-import { hasBuildContext, imageReference } from "./image.js";
+import { imageReference, shouldBuild, shouldPush } from "./image.js";
 import { runCommand } from "./run-command.js";
+
+export function buildDockerCliArgs(options: {
+  container: ContainerConfig;
+  tag: string;
+  dockerfile: string;
+  context: string;
+  buildArgs: Array<{ name: string; value: string }>;
+}): string[] {
+  const { container, tag, dockerfile, context, buildArgs } = options;
+
+  return [
+    "build",
+    ...buildArgs.flatMap((arg) => ["--build-arg", `${arg.name}=${arg.value}`]),
+    ...(container.platform ? ["--platform", container.platform] : []),
+    ...(container.buildTarget ? ["--target", container.buildTarget] : []),
+    "-t",
+    tag,
+    "-f",
+    dockerfile,
+    context,
+  ];
+}
 
 export async function buildContainer(options: {
   resolved: ResolvedEnvironment;
@@ -16,8 +38,12 @@ export async function buildContainer(options: {
 }): Promise<string | null> {
   const { resolved, container, repoRoot, configDir, environmentEnv, log, dryRun } = options;
 
-  if (!hasBuildContext(container)) {
-    log.info("BUILD", `Skipping "${container.id}" — no build context.`);
+  if (!shouldBuild(container)) {
+    if (container.imageRef?.trim()) {
+      log.info("BUILD", `Skipping "${container.id}" — pull-only imageRef.`);
+    } else {
+      log.info("BUILD", `Skipping "${container.id}" — no build context.`);
+    }
     return null;
   }
 
@@ -35,15 +61,13 @@ export async function buildContainer(options: {
     log.info("BUILD", `Build args: ${buildArgs.map((a) => a.name).join(", ")}`);
   }
 
-  const dockerCliArgs = [
-    "build",
-    ...buildArgs.flatMap((arg) => ["--build-arg", `${arg.name}=${arg.value}`]),
-    "-t",
+  const dockerCliArgs = buildDockerCliArgs({
+    container,
     tag,
-    "-f",
     dockerfile,
     context,
-  ];
+    buildArgs,
+  });
 
   await runCommand("docker", dockerCliArgs, {
     phase: "BUILD",
@@ -66,7 +90,7 @@ export async function pushContainer(options: {
 }): Promise<string | null> {
   const { resolved, container, configDir, log, dryRun } = options;
 
-  if (!hasBuildContext(container)) {
+  if (!shouldPush(container)) {
     return null;
   }
 

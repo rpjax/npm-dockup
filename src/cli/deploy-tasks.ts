@@ -5,6 +5,7 @@ import type { ContainerConfig } from "../config/types.js";
 import type { Logger } from "../logger/index.js";
 import { preflight } from "../docker/preflight.js";
 import { buildContainer, pushContainer } from "../docker/build.js";
+import { shouldBuild } from "../docker/image.js";
 import { generateComposeArtifacts, validateComposeArtifacts } from "../compose/generate.js";
 import type { DeployOptions } from "./options.js";
 import { useListr } from "./options.js";
@@ -147,11 +148,11 @@ export async function runDeployTasks(options: DeployOptions, log: Logger): Promi
       },
       {
         title: "Build",
-        enabled: () => !options.skipBuild && buildTargets.some((c) => c.context?.trim()),
+        enabled: () => !options.skipBuild && buildTargets.some((c) => shouldBuild(c)),
         task: (_ctx, task) =>
           task.newListr(
             buildTargets
-              .filter((c) => c.context?.trim())
+              .filter((c) => shouldBuild(c))
               .map((container) => ({
                 title: container.id,
                 task: async () => {
@@ -174,11 +175,11 @@ export async function runDeployTasks(options: DeployOptions, log: Logger): Promi
       },
       {
         title: "Push",
-        enabled: () => !options.skipPush && buildTargets.some((c) => c.context?.trim()),
+        enabled: () => !options.skipPush && buildTargets.some((c) => shouldBuild(c)),
         task: (_ctx, task) =>
           task.newListr(
             buildTargets
-              .filter((c) => c.context?.trim())
+              .filter((c) => shouldBuild(c))
               .map((container) => ({
                 title: container.id,
                 task: async () => {

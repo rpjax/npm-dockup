@@ -1,5 +1,7 @@
 # CLI reference
 
+> **v2.0 breaking change:** `dependsOn` is now an array of objects (`{ "id": "..." }`). Pull-only services use `imageRef`. See [migration-v2.md](migration-v2.md).
+
 Commander powers argument parsing and built-in help. Use `--help` on the root command or any subcommand:
 
 ```bash
@@ -21,21 +23,21 @@ dockup --help
 
 ## `dockup deploy`
 
-Builds images, pushes to registry, generates `out/<env>/docker-compose.yml` and `.env`, then validates with `docker compose config`.
+Builds images (built services only), pushes to registry, generates `out/<env>/docker-compose.yml` and `.env`, then validates with `docker compose config`. Containers with `imageRef` skip build/push.
 
-| Flag              | Description                                       |
-| ----------------- | ------------------------------------------------- |
-| `--env, -e`       | Environment key (required)                        |
-| `--config, -c`    | Explicit path to `*.dockup.json`                  |
-| `--root, -r`      | Repository root for build contexts (default: `.`) |
-| `--only`          | Build/push only one container id                  |
-| `--skip-build`    | Skip docker build                                 |
-| `--skip-push`     | Skip docker push                                  |
-| `--generate-only` | Generate compose artifacts only                   |
-| `--dry-run`       | Log docker commands without running them          |
-| `--json`          | Structured JSON output                            |
-| `--quiet, -q`     | Errors only                                       |
-| `--verbose, -v`   | Debug logging                                     |
+| Flag              | Description                                                             |
+| ----------------- | ----------------------------------------------------------------------- |
+| `--env, -e`       | Environment key (required)                                              |
+| `--config, -c`    | Explicit path to `*.dockup.json`                                        |
+| `--root, -r`      | Repository root for build contexts (default: `.`)                       |
+| `--only`          | Build/push only one container id                                        |
+| `--skip-build`    | Skip docker build                                                       |
+| `--skip-push`     | Skip docker push                                                        |
+| `--generate-only` | Generate compose artifacts only                                         |
+| `--dry-run`       | Log docker commands without running them; skips `docker compose config` |
+| `--json`          | Structured JSON output                                                  |
+| `--quiet, -q`     | Errors only                                                             |
+| `--verbose, -v`   | Debug logging                                                           |
 
 Interactive deploy runs show a listr2 task list (Config → Preflight → Build → Push → Generate → Validate). Use `--json` or `--quiet` for machine-readable or minimal output without the task list.
 

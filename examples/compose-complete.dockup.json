@@ -1,0 +1,105 @@
+{
+  "dev": {
+    "namespace": "websete",
+    "network": "edge",
+    "networks": [{ "name": "internal", "internal": true }],
+    "env": [{ "name": "APP_DOMAIN", "value": "app.localhost" }],
+    "containers": [
+      {
+        "id": "traefik",
+        "imageRef": "traefik:v3.3",
+        "command": [
+          "--providers.docker=true",
+          "--providers.docker.exposedbydefault=false",
+          "--entrypoints.web.address=:80"
+        ],
+        "ports": [{ "host": 8080, "container": 80 }]
+      },
+      {
+        "id": "sidecar",
+        "image": "sidecar",
+        "context": "examples/compose-complete/sidecar",
+        "capAdd": ["SYS_ADMIN"],
+        "shmSize": "2gb",
+        "healthcheck": {
+          "test": ["CMD", "curl", "-f", "http://localhost:8080/health"],
+          "interval": "10s",
+          "timeout": "3s",
+          "retries": 3,
+          "startPeriod": "15s"
+        },
+        "networks": ["edge", "internal"]
+      },
+      {
+        "id": "app",
+        "image": "demo-app",
+        "context": "examples/compose-complete/app",
+        "dependsOn": [{ "id": "sidecar", "condition": "service_healthy" }],
+        "labels": ["traefik.enable=true", "traefik.http.routers.demo.rule=Host(`${APP_DOMAIN}`)"],
+        "networks": ["edge", "internal"],
+        "compose": {
+          "deploy": {
+            "resources": {
+              "limits": {
+                "cpus": "0.50"
+              }
+            }
+          }
+        }
+      }
+    ]
+  },
+  "prod": {
+    "namespace": "websete",
+    "network": "edge",
+    "registry": "ghcr.io",
+    "env": [{ "name": "APP_DOMAIN", "value": "app.example.com" }],
+    "containers": [
+      {
+        "id": "traefik",
+        "imageRef": "traefik:v3.3",
+        "command": [
+          "--providers.docker=true",
+          "--providers.docker.exposedbydefault=false",
+          "--entrypoints.websecure.address=:443",
+          "--certificatesresolvers.le.acme.tlschallenge=true",
+          "--certificatesresolvers.le.acme.email=ops@example.com",
+          "--certificatesresolvers.le.acme.storage=/letsencrypt/acme.json"
+        ],
+        "ports": [
+          { "host": 80, "container": 80 },
+          { "host": 443, "container": 443 }
+        ],
+        "volumes": [{ "name": "traefik-certs", "container": "/letsencrypt" }]
+      },
+      {
+        "id": "sidecar",
+        "image": "sidecar",
+        "context": "examples/compose-complete/sidecar",
+        "capAdd": ["SYS_ADMIN"],
+        "shmSize": "2gb",
+        "healthcheck": {
+          "test": ["CMD", "curl", "-f", "http://localhost:8080/health"],
+          "interval": "10s",
+          "timeout": "3s",
+          "retries": 3
+        }
+      },
+      {
+        "id": "app",
+        "image": "demo-app",
+        "context": "examples/compose-complete/app",
+        "dependsOn": [{ "id": "sidecar", "condition": "service_healthy" }],
+        "labels": {
+          "traefik.enable": "true",
+          "traefik.http.routers.demo.rule": "Host(`${APP_DOMAIN}`)",
+          "traefik.http.routers.demo.tls.certresolver": "le"
+        }
+      }
+    ],
+    "volumes": [{ "name": "traefik-certs" }],
+    "compose": {
+      "name": "compose-complete-prod"
+    }
+  }
+}

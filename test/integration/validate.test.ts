@@ -77,4 +77,58 @@ describe("dockup validate integration", () => {
       },
     );
   });
+
+  it("rejects imageRef with build context", () => {
+    withTempConfig(
+      {
+        prod: {
+          namespace: "example",
+          network: "example-net",
+          containers: [{ id: "traefik", imageRef: "traefik:v3.3", context: "services/traefik" }],
+        },
+      },
+      (dir) => {
+        const result = runDockup(["validate"], dir);
+        const output = `${result.stdout}\n${result.stderr}`;
+        assert.equal(result.status, EXIT.CLI_CONFIG, output);
+        assert.match(output, /imageRef with build context/);
+      },
+    );
+  });
+
+  it("rejects both image and imageRef", () => {
+    withTempConfig(
+      {
+        prod: {
+          namespace: "example",
+          network: "example-net",
+          containers: [{ id: "app", image: "app", imageRef: "redis:7" }],
+        },
+      },
+      (dir) => {
+        const result = runDockup(["validate"], dir);
+        const output = `${result.stdout}\n${result.stderr}`;
+        assert.equal(result.status, EXIT.CLI_CONFIG, output);
+        assert.match(output, /both "image" and "imageRef"|JSON Schema validation/);
+      },
+    );
+  });
+
+  it("rejects platform without build context", () => {
+    withTempConfig(
+      {
+        prod: {
+          namespace: "example",
+          network: "example-net",
+          containers: [{ id: "app", image: "app", platform: "linux/amd64" }],
+        },
+      },
+      (dir) => {
+        const result = runDockup(["validate"], dir);
+        const output = `${result.stdout}\n${result.stderr}`;
+        assert.equal(result.status, EXIT.CLI_CONFIG, output);
+        assert.match(output, /platform\/buildTarget but no build context/);
+      },
+    );
+  });
 });

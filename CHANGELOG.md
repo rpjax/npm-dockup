@@ -5,6 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0] - 2026-07-10
+
+### Added
+
+- **Compose-complete model:** `imageRef`, `command`, `entrypoint`, `labels`, `healthcheck`, `dependsOn` with conditions
+- Container capabilities: `capAdd`, `capDrop`, `shmSize`, `privileged`, `user`, `workingDir`, `init`, `profiles`, `restart`
+- Resource limits: `memLimit`, `memswapLimit`, `cpus`, `cpuShares`, `pidsLimit`
+- Multi-network support: environment `networks[]`, per-service `networks`, `extraHosts`, `hostname`, `domainname`
+- Volume options: `readOnly` mounts, environment `volumes[]` with `external`/`driver`
+- `envFile` paths per container
+- Build options: `platform`, `buildTarget`
+- Escape hatch: `compose` object at service and environment level (deep-merge)
+- Example: `examples/compose-complete.dockup.json` (Traefik + sidecar + app pattern)
+- Docs: `docs/migration-v2.md`
+
+### Changed
+
+- **Breaking:** `dependsOn` is now `[{ "id": "...", "condition": "..." }]` (no string shorthand)
+- **Breaking:** `image` or `imageRef` required per container (`image` and `imageRef` are mutually exclusive)
+- Pull-only services use `imageRef` and skip build/push
+
+### Removed
+
+- v1 `dependsOn: ["api"]` string array syntax
+
 ## [1.1.0] - 2026-07-10
 
 ### Added
@@ -55,5 +80,6 @@ No breaking CLI syntax changes.
 - Legacy JavaScript monolith (`deploy.mjs`, `dockup.mjs`)
 - Project-specific Nexus example config
 
+[2.0.0]: https://github.com/rpjax/npm-dockup/releases/tag/v2.0.0
 [1.1.0]: https://github.com/rpjax/npm-dockup/releases/tag/v1.1.0
 [1.0.0]: https://github.com/rpjax/npm-dockup/releases/tag/v1.0.0

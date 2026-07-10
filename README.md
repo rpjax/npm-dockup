@@ -83,12 +83,12 @@
 
 1. **Config** — JSON Schema + semantic validation for target env only
 2. **Preflight** — `docker version`, `docker info`, registry auth check (warns if missing)
-3. **Build** — `docker build` per container that has `context` (skipped if `--skip-build` or no context)
-4. **Push** — `docker push` per built image (skipped if `--skip-push` or no context)
+3. **Build** — `docker build` per container with `context` and `image` (skipped for `imageRef`-only or `--skip-build`)
+4. **Push** — `docker push` per built image (skipped for `imageRef`-only or `--skip-push`)
 5. **Generate** — write `out/<env>/docker-compose.yml` and `.env`
 6. **Validate compose** — `docker compose config` on generated files
 
-Containers **without** `context` are skipped for build/push (image-only services).
+Containers **without** `context` and with `imageRef` are pull-only (no build/push). Built containers use `image` + optional `context`.
 
 ### Config root structure
 
@@ -101,22 +101,27 @@ Root JSON object: `{ "<envName>": { ... }, ... }`. Each environment:
 | `tag`        | no       | Image tag; defaults to environment key name                      |
 | `registry`   | no       | Registry host prefix (e.g. `ghcr.io`)                            |
 | `env`        | no       | Symbol table for `${VAR}` interpolation; supports `global: true` |
+| `networks`   | no       | Extra network definitions (`driver`, `external`, `internal`)     |
+| `volumes`    | no       | Named volume definitions (`external`, `driver`, `driverOpts`)    |
+| `compose`    | no       | Root escape hatch — merged into generated compose document       |
 | `containers` | **yes**  | Non-empty array of container definitions                         |
 
-Each container:
+Each container requires **`image`** (built) **or** `imageRef` (pull-only):
 
-| Field        | Required | Description                                                                        |
-| ------------ | -------- | ---------------------------------------------------------------------------------- |
-| `id`         | **yes**  | Service name (unique within env); becomes Compose service key and `container_name` |
-| `image`      | **yes**  | Image name without registry/namespace                                              |
-| `context`    | no       | Build context path relative to `--root`; omit for pull-only services               |
-| `dockerfile` | no       | Default `Dockerfile` inside context                                                |
-| `env`        | no       | Runtime env vars; values interpolate against environment symbols                   |
-| `buildArgs`  | no       | Docker build args; requires `context`; interpolate against env symbols             |
-| `ports`      | no       | `[{ "host": 8080, "container": 80 }]`                                              |
-| `expose`     | no       | Internal ports array                                                               |
-| `volumes`    | no       | Named (`name`+`container`) or bind (`host`+`container`) mounts                     |
-| `dependsOn`  | no       | Array of container `id` strings                                                    |
+| Field                                                                                              | Description                                                                          |
+| -------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| `id`                                                                                               | Service name (unique within env)                                                     |
+| `image`                                                                                            | Short image name for build/push → `${DOCKER_IMAGE_ROOT}/<image>:${DOCKER_TAG}`       |
+| `imageRef`                                                                                         | Literal image (e.g. `traefik:v3.3`); skips build/push; cannot combine with `context` |
+| `context`, `dockerfile`, `platform`, `buildTarget`, `buildArgs`                                    | Docker build                                                                         |
+| `env`, `envFile`                                                                                   | Runtime environment                                                                  |
+| `command`, `entrypoint`, `labels`, `healthcheck`                                                   | Container runtime (labels/command interpolate `${VAR}`)                              |
+| `restart`, `profiles`, `init`, `user`, `workingDir`, `privileged`                                  | Container options                                                                    |
+| `capAdd`, `capDrop`, `shmSize`                                                                     | Capabilities                                                                         |
+| `memLimit`, `memswapLimit`, `cpus`, `cpuShares`, `pidsLimit`                                       | Resource limits                                                                      |
+| `ports`, `expose`, `volumes` (with `readOnly`), `networks`, `hostname`, `domainname`, `extraHosts` | Networking and storage                                                               |
+| `dependsOn`                                                                                        | `[{ "id": "sidecar", "condition": "service_healthy" }]`                              |
+| `compose`                                                                                          | Service escape hatch — deep-merged over generated service                            |
 
 ### Interpolation rules
 
@@ -199,8 +204,16 @@ Use `--json` on root **or** subcommand; both work for success and failure.
 
 - Zero or multiple `*.dockup.json` in cwd without `--config`
 - Duplicate container `id` in same environment
+- `image` and `imageRef` cannot both be set
+- `imageRef` cannot be combined with `context` or `buildArgs`
+- Volume mounts need `name` or `host`, not both
+- Duplicate `dependsOn` entries or self-dependencies
+- Duplicate names in `environment.networks[]` or `environment.volumes[]`
 - `buildArgs` without `context`
+- `platform` / `buildTarget` without `context`
 - `dependsOn` referencing unknown container id
+- `dependsOn` with `service_healthy` requires `healthcheck` on the target container
+- Missing `envFile` path on disk
 - Missing build context directory or Dockerfile on disk (when `context` is set)
 - Unresolved or circular `${VAR}` references
 - Unknown `--env` name
@@ -478,6 +491,10 @@ dockup deploy --env prod --json | jq -e '.ok'
 
 See [`examples/full-stack.dockup.json`](examples/full-stack.dockup.json) and [`examples/full-stack/`](examples/full-stack/) for ports, `dependsOn`, `buildArgs`, and multi-registry setup.
 
+For Tier 1+2 fields (Traefik, healthcheck, labels, `imageRef`), see [`examples/compose-complete.dockup.json`](examples/compose-complete.dockup.json).
+
+Upgrading from v1.x? See [docs/migration-v2.md](docs/migration-v2.md).
+
 ### VS Code autocomplete
 
 ```json
@@ -501,6 +518,8 @@ Formal schema: [`schema/dockup.schema.json`](schema/dockup.schema.json)
 2. **`global: true`** on an environment env entry injects that variable into **every** container at runtime.
 3. **Container `env[]`** values interpolate against environment symbols only.
 4. **`buildArgs[]`** resolve against environment symbols only (requires `context`).
+5. **Compose fields** (`command`, `entrypoint`, `labels`, `healthcheck.test`, `extraHosts.host`, `imageRef`) interpolate at render time.
+6. Built **`image`** templates (`${DOCKER_IMAGE_ROOT}/...`) are left for compose to resolve via `.env`.
 
 **Valid:**
 
@@ -518,6 +537,8 @@ Formal schema: [`schema/dockup.schema.json`](schema/dockup.schema.json)
 
 ## Image naming and registries
 
+### Built images (`image` + optional `context`)
+
 | Config                                      | Image built/pushed          | `DOCKER_IMAGE_ROOT` in `.env` |
 | ------------------------------------------- | --------------------------- | ----------------------------- |
 | `namespace: "myorg"`, no registry           | `myorg/my-api:prod`         | `myorg`                       |
@@ -529,6 +550,14 @@ Compose service image line:
 image: ${DOCKER_IMAGE_ROOT}/my-api:${DOCKER_TAG}
 ```
 
+### Pull-only images (`imageRef`)
+
+```json
+{ "id": "traefik", "imageRef": "traefik:v3.3" }
+```
+
+Compose uses the literal image string. No build/push; not affected by `namespace`/`registry`/`tag`.
+
 ---
 
 ## Generated artifacts
@@ -539,12 +568,13 @@ out/<env>/
   .env                  # DOCKER_IMAGE_ROOT, DOCKER_TAG
 ```
 
-Each service gets:
+Each service gets defaults plus configured fields:
 
-- `image` from env vars above
+- `image` from env vars (built) or literal `imageRef` (pull-only)
 - `container_name` = container `id`
-- `restart: unless-stopped`
-- `networks`, `ports`, `expose`, `environment`, `volumes`, `depends_on` as configured
+- `restart: unless-stopped` (override with `restart`)
+- `networks`, `ports`, `expose`, `environment`, `volumes`, `depends_on`, `healthcheck`, `labels`, resource limits, etc. as configured
+- `compose` escape hatch deep-merged per service; environment `compose` merged at root
 
 ---
 
@@ -553,8 +583,14 @@ Each service gets:
 Beyond JSON Schema, dockup enforces:
 
 - `namespace` and `network` required per environment
+- Each container has `image` or `imageRef`, not both
+- `imageRef` cannot combine with `context` or `buildArgs`
 - Unique container `id` per environment
-- Valid `dependsOn` references
+- `dependsOn` references existing containers; no self-reference or duplicates; `service_healthy` requires target `healthcheck`
+- Service `networks[]` references default `network` or `environment.networks[].name`
+- Volume mounts use `name` or `host`, not both; named volumes can be declared in `environment.volumes` for `external`/`driver` options
+- Unique names in `environment.networks[]` and `environment.volumes[]`
+- `envFile` paths exist relative to config directory
 - `buildArgs` requires `context`
 - Build context directory and Dockerfile exist on disk (relative to `--root`)
 - All `${VAR}` symbols resolve without cycles
@@ -677,14 +713,15 @@ my-project/
 
 ## Further documentation
 
-| Doc                                          | Contents                        |
-| -------------------------------------------- | ------------------------------- |
-| [docs/cli.md](docs/cli.md)                   | Full CLI flag reference         |
-| [docs/config.md](docs/config.md)             | Configuration deep dive         |
-| [docs/ci.md](docs/ci.md)                     | GitHub Actions patterns         |
-| [docs/migration-v1.md](docs/migration-v1.md) | Upgrade from legacy v0.x syntax |
-| [CHANGELOG.md](CHANGELOG.md)                 | Version history                 |
-| [examples/](examples/)                       | Minimal and full-stack configs  |
+| Doc                                          | Contents                              |
+| -------------------------------------------- | ------------------------------------- |
+| [docs/cli.md](docs/cli.md)                   | Full CLI flag reference               |
+| [docs/config.md](docs/config.md)             | Configuration deep dive (v2)          |
+| [docs/migration-v2.md](docs/migration-v2.md) | Upgrade from v1.x to 2.0              |
+| [docs/ci.md](docs/ci.md)                     | GitHub Actions patterns               |
+| [docs/migration-v1.md](docs/migration-v1.md) | Upgrade from legacy v0.x syntax       |
+| [CHANGELOG.md](CHANGELOG.md)                 | Version history                       |
+| [examples/](examples/)                       | minimal, full-stack, compose-complete |
 
 ---
 
@@ -694,7 +731,7 @@ my-project/
 git clone https://github.com/rpjax/npm-dockup.git
 cd npm-dockup
 npm ci
-npm test        # build + 36 tests + lint
+npm test        # build + 84 tests + lint
 npm run lint
 ```
 
@@ -703,8 +740,8 @@ npm run lint
 Published to npm on semver tag push:
 
 ```bash
-git tag v1.1.0
-git push origin v1.1.0
+git tag v2.0.0
+git push origin v2.0.0
 ```
 
 Requires `NPM_TOKEN` secret in GitHub repository settings.
