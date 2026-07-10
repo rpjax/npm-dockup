@@ -16,12 +16,16 @@
 - [Agent reference (complete capability map)](#agent-reference-complete-capability-map)
 - [What dockup does](#what-dockup-does)
 - [Install](#install)
+- [Package contents (npm)](#package-contents-npm)
 - [Quick start](#quick-start)
 - [Commands and flags](#commands-and-flags)
 - [Deploy pipeline](#deploy-pipeline)
 - [Output modes](#output-modes)
 - [Exit codes and JSON API](#exit-codes-and-json-api)
 - [Configuration (`*.dockup.json`)](#configuration-dockupjson)
+- [Shipped examples](#shipped-examples)
+- [Complete field reference](#complete-field-reference)
+- [dependsOn & healthcheck](#dependson--healthcheck)
 - [Environment interpolation](#environment-interpolation)
 - [Image naming and registries](#image-naming-and-registries)
 - [Generated artifacts](#generated-artifacts)
@@ -50,6 +54,7 @@
 | Config suffix       | `.dockup.json` (files like `app.dockup.example.json` are **ignored**)    |
 | JSON Schema         | `schema/dockup.schema.json` (shipped in npm package)                     |
 | Build output        | `out/<env>/docker-compose.yml` + `out/<env>/.env`                        |
+| Shipped examples    | `examples/minimal`, `full-stack`, `compose-complete` (see below)         |
 
 ### Commands
 
@@ -111,20 +116,20 @@ Root JSON object: `{ "<envName>": { ... }, ... }`. Each environment:
 
 Each container requires **`image`** (built) **or** `imageRef` (pull-only):
 
-| Field                                                                                              | Description                                                                          |
-| -------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
-| `id`                                                                                               | Service name (unique within env)                                                     |
-| `image`                                                                                            | Short image name for build/push → `${DOCKER_IMAGE_ROOT}/<image>:${DOCKER_TAG}`       |
-| `imageRef`                                                                                         | Literal image (e.g. `traefik:v3.3`); skips build/push; cannot combine with `context` |
-| `context`, `dockerfile`, `platform`, `buildTarget`, `buildArgs`                                    | Docker build                                                                         |
-| `env`, `envFile`                                                                                   | Runtime environment                                                                  |
-| `command`, `entrypoint`, `labels`, `healthcheck`                                                   | Container runtime (labels/command interpolate `${VAR}`)                              |
-| `restart`, `profiles`, `init`, `user`, `workingDir`, `privileged`                                  | Container options                                                                    |
-| `capAdd`, `capDrop`, `shmSize`                                                                     | Capabilities                                                                         |
-| `memLimit`, `memswapLimit`, `cpus`, `cpuShares`, `pidsLimit`                                       | Resource limits                                                                      |
-| `ports`, `expose`, `volumes` (with `readOnly`), `networks`, `hostname`, `domainname`, `extraHosts` | Networking and storage                                                               |
-| `dependsOn`                                                                                        | `[{ "id": "sidecar", "condition": "service_healthy" }]`                              |
-| `compose`                                                                                          | Service escape hatch — deep-merged over generated service                            |
+| Field                                                                                              | Description                                                                                                      |
+| -------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `id`                                                                                               | Service name (unique within env)                                                                                 |
+| `image`                                                                                            | Short image name for build/push → `${DOCKER_IMAGE_ROOT}/<image>:${DOCKER_TAG}`                                   |
+| `imageRef`                                                                                         | Literal image (e.g. `traefik:v3.3`); skips build/push; cannot combine with `context`                             |
+| `context`, `dockerfile`, `platform`, `buildTarget`, `buildArgs`                                    | Docker build                                                                                                     |
+| `env`, `envFile`                                                                                   | Runtime environment                                                                                              |
+| `command`, `entrypoint`, `labels`, `healthcheck`                                                   | Container runtime (labels/command interpolate `${VAR}`)                                                          |
+| `restart`, `profiles`, `init`, `user`, `workingDir`, `privileged`                                  | Container options                                                                                                |
+| `capAdd`, `capDrop`, `shmSize`                                                                     | Capabilities                                                                                                     |
+| `memLimit`, `memswapLimit`, `cpus`, `cpuShares`, `pidsLimit`                                       | Resource limits                                                                                                  |
+| `ports`, `expose`, `volumes` (with `readOnly`), `networks`, `hostname`, `domainname`, `extraHosts` | Networking and storage                                                                                           |
+| `dependsOn`                                                                                        | `[{ "id": "sidecar", "condition": "service_healthy" }]` — see [dependsOn & healthcheck](#dependson--healthcheck) |
+| `compose`                                                                                          | Service escape hatch — deep-merged over generated service                                                        |
 
 ### Interpolation rules
 
@@ -282,6 +287,44 @@ npx @rodrigopjax/dockup@2 --help
 
 ---
 
+## Package contents (npm)
+
+Installing `@rodrigopjax/dockup` ships the following (see `package.json` `files`):
+
+```
+node_modules/@rodrigopjax/dockup/
+  dist/cli/index.js          # dockup binary entry
+  schema/dockup.schema.json  # JSON Schema for *.dockup.json (VS Code + validation)
+  examples/                  # runnable reference configs + Dockerfiles
+  docs/                      # cli, config, migration, ci guides
+  README.md
+  CHANGELOG.md
+  LICENSE
+```
+
+**Paths after install:**
+
+| Asset                    | Path                                                                     |
+| ------------------------ | ------------------------------------------------------------------------ |
+| JSON Schema              | `node_modules/@rodrigopjax/dockup/schema/dockup.schema.json`             |
+| Init template            | `node_modules/@rodrigopjax/dockup/examples/minimal.dockup.json`          |
+| Full-stack example       | `node_modules/@rodrigopjax/dockup/examples/full-stack.dockup.json`       |
+| Compose-complete example | `node_modules/@rodrigopjax/dockup/examples/compose-complete.dockup.json` |
+| Migration v1→v2          | `node_modules/@rodrigopjax/dockup/docs/migration-v2.md`                  |
+
+`dockup init` copies `examples/minimal.dockup.json` into your project. To experiment with bundled examples from a clone or after `npm install`:
+
+```bash
+# From repo clone root
+dockup validate --config examples/full-stack.dockup.json --root .
+dockup deploy --env prod --generate-only --config examples/compose-complete.dockup.json --root .
+
+# From a project that npm-installed dockup (adjust path to node_modules)
+dockup validate --config node_modules/@rodrigopjax/dockup/examples/minimal.dockup.json
+```
+
+---
+
 ## Quick start
 
 ```bash
@@ -340,6 +383,12 @@ Fails with exit `1` if the file already exists.
 ### `dockup validate`
 
 Validates config without Docker. Checks JSON Schema, semantics, path existence, and `${VAR}` resolution.
+
+| Flag                             | Description                                  |
+| -------------------------------- | -------------------------------------------- |
+| `--env`                          | Validate one environment only (default: all) |
+| `--config`, `--root`             | Same as deploy                               |
+| `--json`, `--quiet`, `--verbose` | Output modes                                 |
 
 ```bash
 dockup validate                                    # all environments
@@ -503,13 +552,11 @@ dockup deploy --env prod --json | jq -e '.ok'
 }
 ```
 
-### Full-stack example (gateway + api + web)
+### Full-stack and compose-complete
 
-See [`examples/full-stack.dockup.json`](examples/full-stack.dockup.json) and [`examples/full-stack/`](examples/full-stack/) for ports, `dependsOn`, `buildArgs`, and multi-registry setup.
+Detailed walkthroughs, Dockerfiles, and run commands: [Shipped examples](#shipped-examples).
 
-For Tier 1+2 fields (Traefik, healthcheck, labels, `imageRef`), see [`examples/compose-complete.dockup.json`](examples/compose-complete.dockup.json).
-
-### Compose-complete snippet (v2)
+### Compose-complete snippet (copy-paste)
 
 Gateway + built app + pull-only Traefik in one file:
 
@@ -565,7 +612,182 @@ Formal schema: [`schema/dockup.schema.json`](schema/dockup.schema.json)
 
 ---
 
-## Environment interpolation
+## Shipped examples
+
+All examples ship in the npm package under `examples/` and in the [GitHub repo](https://github.com/rpjax/npm-dockup/tree/main/examples).
+
+### `minimal.dockup.json` — init template
+
+|                  |                                                                      |
+| ---------------- | -------------------------------------------------------------------- |
+| **Purpose**      | Default scaffold for `dockup init`; multi-env without build contexts |
+| **Environments** | `dev`, `prod`                                                        |
+| **Containers**   | `api` (image-only, no `context`)                                     |
+| **Demonstrates** | `${VAR}` chaining (`API_BASE_URL` → `API_HOST`), per-env `env[]`     |
+
+```bash
+dockup init myapp          # copies this template
+dockup validate --env dev  # works without Docker
+```
+
+No Dockerfiles — use `--generate-only` or add `context` paths before full deploy.
+
+### `full-stack.dockup.json` — gateway + api + web
+
+|                  |                                                                                        |
+| ---------------- | -------------------------------------------------------------------------------------- |
+| **Purpose**      | Classic multi-service monorepo with reverse proxy                                      |
+| **Environments** | `dev` (port 8080), `prod` (`ghcr.io`, ports 80/443)                                    |
+| **Containers**   | `gateway`, `api`, `web` — all built (`image` + `context`)                              |
+| **Demonstrates** | `dependsOn` object syntax, `buildArgs`, `expose`, `ports`, registry, env interpolation |
+
+**Layout:**
+
+```
+examples/full-stack/
+  gateway/Dockerfile
+  api/Dockerfile
+  web/Dockerfile
+```
+
+```bash
+dockup validate --config examples/full-stack.dockup.json --root .
+dockup deploy --env prod --generate-only --config examples/full-stack.dockup.json --root .
+# → out/prod/docker-compose.yml (gateway depends_on api, web; ghcr.io images)
+```
+
+### `compose-complete.dockup.json` — v2 showcase (Traefik + sidecar + app)
+
+|                  |                                                                                                                                                                   |
+| ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Purpose**      | Canonical v2 config — Tier 1 + Tier 2 fields                                                                                                                      |
+| **Environments** | `dev` (internal network, labels array), `prod` (TLS, named volume, root `compose`)                                                                                |
+| **Containers**   | `traefik` (`imageRef`), `sidecar` (build + healthcheck + capAdd), `app` (build + labels + dependsOn)                                                              |
+| **Demonstrates** | `imageRef`, `command`, `healthcheck`, `service_healthy`, `labels` interpolation, `networks[]`, `capAdd`, `shmSize`, `compose` escape hatch, `environment.volumes` |
+
+**Layout:**
+
+```
+examples/compose-complete/
+  app/Dockerfile
+  sidecar/Dockerfile
+```
+
+```bash
+dockup deploy --env dev --generate-only \
+  --config examples/compose-complete.dockup.json --root .
+docker compose -f out/dev/docker-compose.yml --env-file out/dev/.env config
+```
+
+E2E tests run `docker compose config` on both `dev` and `prod` for this example.
+
+### Example comparison
+
+| Example            | Built images | Pull-only | Healthcheck | Labels | Multi-network | Escape hatch |
+| ------------------ | ------------ | --------- | ----------- | ------ | ------------- | ------------ |
+| `minimal`          | optional     | —         | —           | —      | —             | —            |
+| `full-stack`       | 3            | —         | —           | —      | —             | —            |
+| `compose-complete` | 2            | Traefik   | sidecar     | app    | dev/prod      | app + root   |
+
+---
+
+## Complete field reference
+
+### Environment (`<envName>` object)
+
+| Field        | Required | Compose output                                                 |
+| ------------ | -------- | -------------------------------------------------------------- |
+| `namespace`  | yes      | Image namespace for built services                             |
+| `network`    | yes      | Default network (every service unless overridden)              |
+| `tag`        | no       | Image tag (default: environment key) → `DOCKER_TAG`            |
+| `registry`   | no       | Registry host → `DOCKER_IMAGE_ROOT` prefix                     |
+| `env`        | no       | Symbol table for `${VAR}`; supports `global: true`             |
+| `networks`   | no       | Extra networks: `{ name, driver?, external?, internal? }`      |
+| `volumes`    | no       | Named volume defs: `{ name, external?, driver?, driverOpts? }` |
+| `compose`    | no       | Root document escape hatch (deep-merged last)                  |
+| `containers` | yes      | Service definitions (non-empty array)                          |
+
+### Container (each entry in `containers[]`)
+
+Requires **`image`** (built) **or** `imageRef` (pull-only), never both.
+
+| Group            | Fields                                                                                                              | Notes                                                                        |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| **Identity**     | `id`                                                                                                                | Unique within environment; becomes service key + `container_name`            |
+| **Image**        | `image`, `imageRef`                                                                                                 | `image` → `${DOCKER_IMAGE_ROOT}/<image>:${DOCKER_TAG}`; `imageRef` → literal |
+| **Build**        | `context`, `dockerfile`, `platform`, `buildTarget`, `buildArgs`                                                     | Require `image`; `buildArgs`/`platform`/`buildTarget` need `context`         |
+| **Runtime**      | `command`, `entrypoint`, `labels`, `healthcheck`, `restart`, `profiles`, `init`, `user`, `workingDir`, `privileged` | `restart` default generated: `unless-stopped`                                |
+| **Capabilities** | `capAdd`, `capDrop`, `shmSize`                                                                                      | Maps to `cap_add`, `cap_drop`, `shm_size`                                    |
+| **Resources**    | `memLimit`, `memswapLimit`, `cpus`, `cpuShares`, `pidsLimit`                                                        | Top-level compose limits                                                     |
+| **Network**      | `ports`, `expose`, `networks`, `hostname`, `domainname`, `extraHosts`                                               | `networks`: string[] or `{ name, aliases? }[]`                               |
+| **Storage**      | `volumes`, `env`, `envFile`                                                                                         | Volume: `{ name \| host, container, readOnly? }` — one of `name` or `host`   |
+| **Deps**         | `dependsOn`                                                                                                         | `{ id, condition? }[]` — see below                                           |
+| **Escape**       | `compose`                                                                                                           | Per-service deep-merge over generated fields                                 |
+
+### `healthcheck` object
+
+| Field         | Required | Compose key                                                 |
+| ------------- | -------- | ----------------------------------------------------------- |
+| `test`        | yes      | `healthcheck.test` (string or array; interpolates `${VAR}`) |
+| `interval`    | no       | `interval`                                                  |
+| `timeout`     | no       | `timeout`                                                   |
+| `retries`     | no       | `retries`                                                   |
+| `startPeriod` | no       | `start_period`                                              |
+
+### Volume mount (`volumes[]` entry)
+
+| Field       | Description                                                                                   |
+| ----------- | --------------------------------------------------------------------------------------------- |
+| `name`      | Named volume (auto-declared in compose, or use `environment.volumes` for `external`/`driver`) |
+| `host`      | Bind mount host path (not validated on disk)                                                  |
+| `container` | Mount path inside container                                                                   |
+| `readOnly`  | Appends `:ro` suffix                                                                          |
+
+### Labels
+
+```json
+"labels": ["traefik.enable=true", "traefik.http.routers.app.rule=Host(`${HOST}`)"]
+```
+
+or object form:
+
+```json
+"labels": { "traefik.enable": "true", "traefik.http.routers.app.rule": "Host(`${HOST}`)" }
+```
+
+---
+
+## dependsOn & healthcheck
+
+**v2 syntax** (required — string arrays are invalid):
+
+```json
+"dependsOn": [
+  { "id": "api" },
+  { "id": "db", "condition": "service_healthy" },
+  { "id": "migrator", "condition": "service_completed_successfully" }
+]
+```
+
+| `condition`                      | When omitted                  | Meaning                                |
+| -------------------------------- | ----------------------------- | -------------------------------------- |
+| _(none)_                         | defaults to `service_started` | Wait until container starts            |
+| `service_started`                | —                             | Same as default                        |
+| `service_healthy`                | —                             | Wait until target `healthcheck` passes |
+| `service_completed_successfully` | —                             | Wait for one-shot container exit 0     |
+
+**Rules:**
+
+- `service_healthy` requires `healthcheck` on the **target** container
+- No self-dependencies; no duplicate `id` entries
+- Unknown `id` → validation error
+
+**Compose output:**
+
+- All deps use default `service_started` → short syntax: `depends_on: [api, web]`
+- Any non-default condition → map syntax: `depends_on: { api: { condition: service_healthy } }`
+
+---
 
 1. **Environment-level `env[]`** defines a symbol table. Values can reference other symbols: `"http://${API_HOST}"`.
 2. **`global: true`** on an environment env entry injects that variable into **every** container at runtime.
@@ -747,6 +969,7 @@ my-project/
 4. Confirm Docker is installed and logged into registry (for push)
 5. Use `--json` in CI for machine-parseable results
 6. Use `--generate-only` when user only needs compose files without registry access
+7. Copy examples from `node_modules/@rodrigopjax/dockup/examples/` or link schema for IDE autocomplete
 
 ---
 
@@ -770,15 +993,27 @@ my-project/
 
 ## Further documentation
 
-| Doc                                          | Contents                              |
-| -------------------------------------------- | ------------------------------------- |
-| [docs/cli.md](docs/cli.md)                   | Full CLI flag reference               |
-| [docs/config.md](docs/config.md)             | Configuration deep dive (v2)          |
-| [docs/migration-v2.md](docs/migration-v2.md) | Upgrade from v1.x to 2.0              |
-| [docs/ci.md](docs/ci.md)                     | GitHub Actions patterns               |
-| [docs/migration-v1.md](docs/migration-v1.md) | Upgrade from legacy v0.x syntax       |
-| [CHANGELOG.md](CHANGELOG.md)                 | Version history                       |
-| [examples/](examples/)                       | minimal, full-stack, compose-complete |
+| Doc                                          | Contents                                  |
+| -------------------------------------------- | ----------------------------------------- |
+| [docs/cli.md](docs/cli.md)                   | Full CLI flag reference                   |
+| [docs/config.md](docs/config.md)             | Configuration deep dive (v2)              |
+| [docs/migration-v2.md](docs/migration-v2.md) | Upgrade from v1.x to 2.0                  |
+| [docs/ci.md](docs/ci.md)                     | GitHub Actions patterns                   |
+| [docs/migration-v1.md](docs/migration-v1.md) | Upgrade from legacy v0.x syntax           |
+| [CHANGELOG.md](CHANGELOG.md)                 | Version history                           |
+| [examples/](examples/)                       | See [Shipped examples](#shipped-examples) |
+
+### Repository layout (source)
+
+```
+npm-dockup/
+  src/                 # TypeScript source
+  dist/                # compiled CLI (published)
+  schema/              # dockup.schema.json
+  examples/            # minimal, full-stack, compose-complete
+  docs/                # cli, config, migration-v2, ci
+  test/                # 84 tests (unit, integration, e2e)
+```
 
 ---
 
