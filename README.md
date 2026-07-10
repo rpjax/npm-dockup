@@ -39,45 +39,45 @@
 
 ### Identity
 
-| Property | Value |
-| -------- | ----- |
-| npm package | `@rodrigopjax/dockup` |
-| CLI binary | `dockup` |
+| Property            | Value                                                                    |
+| ------------------- | ------------------------------------------------------------------------ |
+| npm package         | `@rodrigopjax/dockup`                                                    |
+| CLI binary          | `dockup`                                                                 |
 | Config file pattern | exactly one `*.dockup.json` per working directory (or `--config <path>`) |
-| Config suffix | `.dockup.json` (files like `app.dockup.example.json` are **ignored**) |
-| JSON Schema | `schema/dockup.schema.json` (shipped in npm package) |
-| Build output | `out/<env>/docker-compose.yml` + `out/<env>/.env` |
+| Config suffix       | `.dockup.json` (files like `app.dockup.example.json` are **ignored**)    |
+| JSON Schema         | `schema/dockup.schema.json` (shipped in npm package)                     |
+| Build output        | `out/<env>/docker-compose.yml` + `out/<env>/.env`                        |
 
 ### Commands
 
-| Command | Requires Docker | Purpose |
-| ------- | --------------- | ------- |
-| `dockup init [name]` | No | Create `<name>.dockup.json` from minimal template (default name: `app`) |
-| `dockup validate [options]` | No | JSON Schema + semantic validation + `${VAR}` resolution |
-| `dockup deploy --env <name> [options]` | Yes | Full pipeline: validate → preflight → build → push → generate → `docker compose config` |
+| Command                                | Requires Docker | Purpose                                                                                 |
+| -------------------------------------- | --------------- | --------------------------------------------------------------------------------------- |
+| `dockup init [name]`                   | No              | Create `<name>.dockup.json` from minimal template (default name: `app`)                 |
+| `dockup validate [options]`            | No              | JSON Schema + semantic validation + `${VAR}` resolution                                 |
+| `dockup deploy --env <name> [options]` | Yes             | Full pipeline: validate → preflight → build → push → generate → `docker compose config` |
 
 ### Global flags (work on root and subcommands; can appear before or after subcommand)
 
-| Flag | Short | Default | Effect |
-| ---- | ----- | ------- | ------ |
-| `--config <path>` | `-c` | auto-discover | Explicit path to `*.dockup.json` |
-| `--root <path>` | `-r` | `.` | Repository root for resolving `container.context` build paths |
-| `--json` | | off | Structured JSON on stdout; suppresses banners and listr2 |
-| `--quiet` | `-q` | off | Errors and warnings only; no listr2, no summary |
-| `--verbose` | `-v` | off | Debug logging |
-| `--version` | `-V` | | Print version from `package.json` |
-| `--help` | `-h` | | Commander-generated help |
+| Flag              | Short | Default       | Effect                                                        |
+| ----------------- | ----- | ------------- | ------------------------------------------------------------- |
+| `--config <path>` | `-c`  | auto-discover | Explicit path to `*.dockup.json`                              |
+| `--root <path>`   | `-r`  | `.`           | Repository root for resolving `container.context` build paths |
+| `--json`          |       | off           | Structured JSON on stdout; suppresses banners and listr2      |
+| `--quiet`         | `-q`  | off           | Errors and warnings only; no listr2, no summary               |
+| `--verbose`       | `-v`  | off           | Debug logging                                                 |
+| `--version`       | `-V`  |               | Print version from `package.json`                             |
+| `--help`          | `-h`  |               | Commander-generated help                                      |
 
 ### Deploy-only flags
 
-| Flag | Effect |
-| ---- | ------ |
-| `--env <name>` **(required)** | Environment key at root of config JSON (e.g. `prod`, `dev`) |
-| `--only <id>` | Build/push only one container by `id` |
-| `--skip-build` | Skip `docker build` phase |
-| `--skip-push` | Skip `docker push` phase |
-| `--generate-only` | Sets both `--skip-build` and `--skip-push`; only generates compose artifacts |
-| `--dry-run` | Log docker commands without executing them |
+| Flag                          | Effect                                                                       |
+| ----------------------------- | ---------------------------------------------------------------------------- |
+| `--env <name>` **(required)** | Environment key at root of config JSON (e.g. `prod`, `dev`)                  |
+| `--only <id>`                 | Build/push only one container by `id`                                        |
+| `--skip-build`                | Skip `docker build` phase                                                    |
+| `--skip-push`                 | Skip `docker push` phase                                                     |
+| `--generate-only`             | Sets both `--skip-build` and `--skip-push`; only generates compose artifacts |
+| `--dry-run`                   | Log docker commands without executing them                                   |
 
 ### Deploy pipeline phases (in order)
 
@@ -94,29 +94,29 @@ Containers **without** `context` are skipped for build/push (image-only services
 
 Root JSON object: `{ "<envName>": { ... }, ... }`. Each environment:
 
-| Field | Required | Description |
-| ----- | -------- | ----------- |
-| `namespace` | **yes** | Docker image namespace (e.g. `myorg`) |
-| `network` | **yes** | Docker Compose network name (no default) |
-| `tag` | no | Image tag; defaults to environment key name |
-| `registry` | no | Registry host prefix (e.g. `ghcr.io`) |
-| `env` | no | Symbol table for `${VAR}` interpolation; supports `global: true` |
-| `containers` | **yes** | Non-empty array of container definitions |
+| Field        | Required | Description                                                      |
+| ------------ | -------- | ---------------------------------------------------------------- |
+| `namespace`  | **yes**  | Docker image namespace (e.g. `myorg`)                            |
+| `network`    | **yes**  | Docker Compose network name (no default)                         |
+| `tag`        | no       | Image tag; defaults to environment key name                      |
+| `registry`   | no       | Registry host prefix (e.g. `ghcr.io`)                            |
+| `env`        | no       | Symbol table for `${VAR}` interpolation; supports `global: true` |
+| `containers` | **yes**  | Non-empty array of container definitions                         |
 
 Each container:
 
-| Field | Required | Description |
-| ----- | -------- | ----------- |
-| `id` | **yes** | Service name (unique within env); becomes Compose service key and `container_name` |
-| `image` | **yes** | Image name without registry/namespace |
-| `context` | no | Build context path relative to `--root`; omit for pull-only services |
-| `dockerfile` | no | Default `Dockerfile` inside context |
-| `env` | no | Runtime env vars; values interpolate against environment symbols |
-| `buildArgs` | no | Docker build args; requires `context`; interpolate against env symbols |
-| `ports` | no | `[{ "host": 8080, "container": 80 }]` |
-| `expose` | no | Internal ports array |
-| `volumes` | no | Named (`name`+`container`) or bind (`host`+`container`) mounts |
-| `dependsOn` | no | Array of container `id` strings |
+| Field        | Required | Description                                                                        |
+| ------------ | -------- | ---------------------------------------------------------------------------------- |
+| `id`         | **yes**  | Service name (unique within env); becomes Compose service key and `container_name` |
+| `image`      | **yes**  | Image name without registry/namespace                                              |
+| `context`    | no       | Build context path relative to `--root`; omit for pull-only services               |
+| `dockerfile` | no       | Default `Dockerfile` inside context                                                |
+| `env`        | no       | Runtime env vars; values interpolate against environment symbols                   |
+| `buildArgs`  | no       | Docker build args; requires `context`; interpolate against env symbols             |
+| `ports`      | no       | `[{ "host": 8080, "container": 80 }]`                                              |
+| `expose`     | no       | Internal ports array                                                               |
+| `volumes`    | no       | Named (`name`+`container`) or bind (`host`+`container`) mounts                     |
+| `dependsOn`  | no       | Array of container `id` strings                                                    |
 
 ### Interpolation rules
 
@@ -142,26 +142,47 @@ DOCKER_TAG=<tag>
 
 ### Exit codes
 
-| Code | Phases | Meaning |
-| ---- | ------ | ------- |
-| `0` | — | Success |
-| `1` | `CLI`, `CONFIG`, `GENERATE` | Invalid args, config, or compose generation |
-| `2` | `PREFLIGHT`, `BUILD`, `PUSH`, `VALIDATE` | Docker command failure |
-| `3` | `RUNTIME` | Unexpected error |
+| Code | Phases                                   | Meaning                                     |
+| ---- | ---------------------------------------- | ------------------------------------------- |
+| `0`  | —                                        | Success                                     |
+| `1`  | `CLI`, `CONFIG`, `GENERATE`              | Invalid args, config, or compose generation |
+| `2`  | `PREFLIGHT`, `BUILD`, `PUSH`, `VALIDATE` | Docker command failure                      |
+| `3`  | `RUNTIME`                                | Unexpected error                            |
 
 ### JSON success shapes
 
 **validate:**
+
 ```json
-{ "ok": true, "command": "validate", "config": "...", "configDir": "...", "repoRoot": "...", "environments": ["prod", "dev"] }
+{
+  "ok": true,
+  "command": "validate",
+  "config": "...",
+  "configDir": "...",
+  "repoRoot": "...",
+  "environments": ["prod", "dev"]
+}
 ```
 
 **deploy:**
+
 ```json
-{ "ok": true, "command": "deploy", "env": "prod", "namespace": "...", "registry": "ghcr.io", "tag": "prod", "built": ["api"], "pushed": ["api"], "artifacts": ["out/prod/docker-compose.yml", "out/prod/.env"], "elapsedSec": 42.1 }
+{
+  "ok": true,
+  "command": "deploy",
+  "env": "prod",
+  "namespace": "...",
+  "registry": "ghcr.io",
+  "tag": "prod",
+  "built": ["api"],
+  "pushed": ["api"],
+  "artifacts": ["out/prod/docker-compose.yml", "out/prod/.env"],
+  "elapsedSec": 42.1
+}
 ```
 
 **init:**
+
 ```json
 { "ok": true, "command": "init", "path": "/path/to/myapp.dockup.json" }
 ```
@@ -346,24 +367,24 @@ Interactive mode (default) shows a **listr2** task tree:
 
 ## Output modes
 
-| Mode | Flag | Behavior |
-| ---- | ---- | -------- |
-| Interactive (default) | — | listr2 task tree + brief completion message |
-| JSON | `--json` | Single JSON object on stdout; no banner, no listr2 |
-| Quiet | `--quiet` | Errors/warnings only; no banner, no listr2, no summary |
-| Verbose | `--verbose` | Debug log lines |
-| Dry run | `--dry-run` | Logs docker commands with `[dry-run]` prefix |
+| Mode                  | Flag        | Behavior                                               |
+| --------------------- | ----------- | ------------------------------------------------------ |
+| Interactive (default) | —           | listr2 task tree + brief completion message            |
+| JSON                  | `--json`    | Single JSON object on stdout; no banner, no listr2     |
+| Quiet                 | `--quiet`   | Errors/warnings only; no banner, no listr2, no summary |
+| Verbose               | `--verbose` | Debug log lines                                        |
+| Dry run               | `--dry-run` | Logs docker commands with `[dry-run]` prefix           |
 
 ---
 
 ## Exit codes and JSON API
 
-| Code | Meaning |
-| ---- | ------- |
-| `0` | Success |
-| `1` | CLI, config, or compose generation error |
-| `2` | Docker command failed (includes preflight) |
-| `3` | Unexpected runtime error |
+| Code | Meaning                                    |
+| ---- | ------------------------------------------ |
+| `0`  | Success                                    |
+| `1`  | CLI, config, or compose generation error   |
+| `2`  | Docker command failed (includes preflight) |
+| `3`  | Unexpected runtime error                   |
 
 **CI pattern:**
 
@@ -391,11 +412,11 @@ dockup deploy --env prod --json | jq -e '.ok'
 
 ### Discovery
 
-| Matches in cwd | Result |
-| -------------- | ------ |
-| 0 | Error — run `dockup init` or pass `--config` |
-| 1 | Uses that file |
-| 2+ | Error — ambiguous; pass `--config` |
+| Matches in cwd | Result                                       |
+| -------------- | -------------------------------------------- |
+| 0              | Error — run `dockup init` or pass `--config` |
+| 1              | Uses that file                               |
+| 2+             | Error — ambiguous; pass `--config`           |
 
 ### Minimal example
 
@@ -497,10 +518,10 @@ Formal schema: [`schema/dockup.schema.json`](schema/dockup.schema.json)
 
 ## Image naming and registries
 
-| Config | Image built/pushed | `DOCKER_IMAGE_ROOT` in `.env` |
-| ------ | ------------------ | ----------------------------- |
-| `namespace: "myorg"`, no registry | `myorg/my-api:prod` | `myorg` |
-| `namespace: "myorg"`, `registry: "ghcr.io"` | `ghcr.io/myorg/my-api:prod` | `ghcr.io/myorg` |
+| Config                                      | Image built/pushed          | `DOCKER_IMAGE_ROOT` in `.env` |
+| ------------------------------------------- | --------------------------- | ----------------------------- |
+| `namespace: "myorg"`, no registry           | `myorg/my-api:prod`         | `myorg`                       |
+| `namespace: "myorg"`, `registry: "ghcr.io"` | `ghcr.io/myorg/my-api:prod` | `ghcr.io/myorg`               |
 
 Compose service image line:
 
@@ -642,28 +663,28 @@ my-project/
 
 ## Troubleshooting
 
-| Problem | Cause | Fix |
-| ------- | ----- | --- |
-| `No *.dockup.json config found` | No config in cwd | `dockup init` or `--config <path>` |
-| `Ambiguous config` | Multiple `*.dockup.json` files | Remove extras or `--config` |
-| `buildArgs but no build context` | `buildArgs` without `context` | Add `context` or remove `buildArgs` |
-| `Unresolved symbol` | `${VAR}` not in environment `env[]` | Define symbol at environment level |
-| `Build context not found` | Wrong `--root` or path | Fix `context` or pass `--root` |
-| Push fails | Not logged into registry | `docker login ghcr.io` (or your registry) |
-| Human errors in CI with `--json` | Flag placement | Use `--json` on root or subcommand (both work) |
+| Problem                          | Cause                               | Fix                                            |
+| -------------------------------- | ----------------------------------- | ---------------------------------------------- |
+| `No *.dockup.json config found`  | No config in cwd                    | `dockup init` or `--config <path>`             |
+| `Ambiguous config`               | Multiple `*.dockup.json` files      | Remove extras or `--config`                    |
+| `buildArgs but no build context` | `buildArgs` without `context`       | Add `context` or remove `buildArgs`            |
+| `Unresolved symbol`              | `${VAR}` not in environment `env[]` | Define symbol at environment level             |
+| `Build context not found`        | Wrong `--root` or path              | Fix `context` or pass `--root`                 |
+| Push fails                       | Not logged into registry            | `docker login ghcr.io` (or your registry)      |
+| Human errors in CI with `--json` | Flag placement                      | Use `--json` on root or subcommand (both work) |
 
 ---
 
 ## Further documentation
 
-| Doc | Contents |
-| --- | -------- |
-| [docs/cli.md](docs/cli.md) | Full CLI flag reference |
-| [docs/config.md](docs/config.md) | Configuration deep dive |
-| [docs/ci.md](docs/ci.md) | GitHub Actions patterns |
+| Doc                                          | Contents                        |
+| -------------------------------------------- | ------------------------------- |
+| [docs/cli.md](docs/cli.md)                   | Full CLI flag reference         |
+| [docs/config.md](docs/config.md)             | Configuration deep dive         |
+| [docs/ci.md](docs/ci.md)                     | GitHub Actions patterns         |
 | [docs/migration-v1.md](docs/migration-v1.md) | Upgrade from legacy v0.x syntax |
-| [CHANGELOG.md](CHANGELOG.md) | Version history |
-| [examples/](examples/) | Minimal and full-stack configs |
+| [CHANGELOG.md](CHANGELOG.md)                 | Version history                 |
+| [examples/](examples/)                       | Minimal and full-stack configs  |
 
 ---
 

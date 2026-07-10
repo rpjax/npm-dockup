@@ -5,10 +5,7 @@ import type { ContainerConfig } from "../config/types.js";
 import type { Logger } from "../logger/index.js";
 import { preflight } from "../docker/preflight.js";
 import { buildContainer, pushContainer } from "../docker/build.js";
-import {
-  generateComposeArtifacts,
-  validateComposeArtifacts,
-} from "../compose/generate.js";
+import { generateComposeArtifacts, validateComposeArtifacts } from "../compose/generate.js";
 import type { DeployOptions } from "./options.js";
 import { useListr } from "./options.js";
 import { loadValidatedConfig } from "./context.js";
@@ -22,10 +19,7 @@ export interface DeployResult {
   registry?: string;
 }
 
-export async function runDeployTasks(
-  options: DeployOptions,
-  log: Logger,
-): Promise<DeployResult> {
+export async function runDeployTasks(options: DeployOptions, log: Logger): Promise<DeployResult> {
   const { configPath, repoRoot, config, configDir } = loadValidatedConfig(options);
   const resolved = getEnvironment(config, options.env);
 

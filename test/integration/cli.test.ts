@@ -47,12 +47,7 @@ describe("dockup CLI", () => {
   });
 
   it("emits JSON errors when --json is on the subcommand", () => {
-    const result = runDockup([
-      "validate",
-      "--json",
-      "--config",
-      "does-not-exist.dockup.json",
-    ]);
+    const result = runDockup(["validate", "--json", "--config", "does-not-exist.dockup.json"]);
     assert.equal(result.status, 1, result.stderr);
     const payload = JSON.parse(result.stdout) as { ok: boolean; phase: string };
     assert.equal(payload.ok, false);

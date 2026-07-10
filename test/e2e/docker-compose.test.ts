@@ -32,11 +32,7 @@ describe("dockup e2e compose validation", () => {
       },
     );
 
-    assert.equal(
-      generate.status,
-      0,
-      `generate failed:\n${generate.stdout}\n${generate.stderr}`,
-    );
+    assert.equal(generate.status, 0, `generate failed:\n${generate.stdout}\n${generate.stderr}`);
 
     const composePath = join(configDir, "out/prod/docker-compose.yml");
     const envPath = join(configDir, "out/prod/.env");

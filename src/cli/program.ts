@@ -172,9 +172,7 @@ export function createProgram(runContext: RunContext = createRunContext()): Comm
       actionCommand.opts() as CommanderGlobalOpts,
     );
     runContext.interactive =
-      actionCommand.name() === "deploy" &&
-      !runContext.global.json &&
-      !runContext.global.quiet;
+      actionCommand.name() === "deploy" && !runContext.global.json && !runContext.global.quiet;
     runContext.log = createLogger(runContext.global, runContext.interactive);
   });
 

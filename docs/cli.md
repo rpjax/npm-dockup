@@ -59,14 +59,14 @@ dockup validate --config ./app.dockup.json --json
 dockup --json validate --config ./app.dockup.json
 ```
 
-| Flag           | Description                                       |
-| -------------- | ------------------------------------------------- |
-| `--env, -e`    | Validate one environment (default: all)           |
-| `--config, -c` | Explicit path to `*.dockup.json`                  |
-| `--root, -r`   | Repository root for build contexts (default: `.`) |
-| `--json`       | Structured JSON output                            |
-| `--quiet, -q`  | Errors and warnings only                          |
-| `--verbose, -v`| Debug logging                                     |
+| Flag            | Description                                       |
+| --------------- | ------------------------------------------------- |
+| `--env, -e`     | Validate one environment (default: all)           |
+| `--config, -c`  | Explicit path to `*.dockup.json`                  |
+| `--root, -r`    | Repository root for build contexts (default: `.`) |
+| `--json`        | Structured JSON output                            |
+| `--quiet, -q`   | Errors and warnings only                          |
+| `--verbose, -v` | Debug logging                                     |
 
 ## `dockup init`
 
@@ -78,12 +78,12 @@ dockup init myapp
 
 ## Exit codes
 
-| Code | Meaning                                      |
-| ---- | -------------------------------------------- |
-| 0    | Success                                      |
-| 1    | CLI, config, or compose generation error     |
-| 2    | Docker command failed (incl. preflight)      |
-| 3    | Unexpected runtime error                     |
+| Code | Meaning                                  |
+| ---- | ---------------------------------------- |
+| 0    | Success                                  |
+| 1    | CLI, config, or compose generation error |
+| 2    | Docker command failed (incl. preflight)  |
+| 3    | Unexpected runtime error                 |
 
 Exit code `1` covers phases such as `CLI`, `CONFIG`, and `GENERATE`. Exit code `2` covers `PREFLIGHT`, `BUILD`, `PUSH`, and `VALIDATE`.
 

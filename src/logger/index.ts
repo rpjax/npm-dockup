@@ -30,10 +30,7 @@ export class Logger {
     this.json = options.json ?? false;
     this.interactive = options.interactive ?? false;
     this.color =
-      !this.json &&
-      pc.isColorSupported &&
-      process.stdout.isTTY === true &&
-      !process.env.NO_COLOR;
+      !this.json && pc.isColorSupported && process.stdout.isTTY === true && !process.env.NO_COLOR;
   }
 
   private c(text: string, style: (value: string) => string): string {
@@ -121,7 +118,9 @@ export class Logger {
       return;
     }
     console.log("");
-    console.log(`${this.c("dockup", pc.bold)}  ${this.c(`@rodrigopjax/dockup${version ? ` v${version}` : ""}`, pc.dim)}`);
+    console.log(
+      `${this.c("dockup", pc.bold)}  ${this.c(`@rodrigopjax/dockup${version ? ` v${version}` : ""}`, pc.dim)}`,
+    );
     console.log(this.c("────────────────────────────────────────", pc.dim));
   }
 
@@ -167,19 +166,12 @@ export class Logger {
     console.log("");
   }
 
-  deployComplete(payload: {
-    env: string;
-    artifacts: string[];
-    elapsedSec: string;
-  }): void {
+  deployComplete(payload: { env: string; artifacts: string[]; elapsedSec: string }): void {
     if (this.json || this.quiet) {
       return;
     }
     console.log("");
-    this.ok(
-      "DONE",
-      `Completed in ${payload.elapsedSec}s — artifacts in out/${payload.env}/`,
-    );
+    this.ok("DONE", `Completed in ${payload.elapsedSec}s — artifacts in out/${payload.env}/`);
     for (const file of payload.artifacts) {
       this.info("DONE", file);
     }
