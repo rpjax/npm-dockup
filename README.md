@@ -3,8 +3,11 @@
 **Professional Docker deploy CLI.** Build images, push to a registry, and generate production-ready Docker Compose artifacts from a declarative `*.dockup.json` config.
 
 [![CI](https://github.com/rpjax/npm-dockup/actions/workflows/ci.yml/badge.svg)](https://github.com/rpjax/npm-dockup/actions/workflows/ci.yml)
+[![npm](https://img.shields.io/npm/v/@rodrigopjax/dockup.svg)](https://www.npmjs.com/package/@rodrigopjax/dockup)
 
-**Package:** `@rodrigopjax/dockup` · **Binary:** `dockup` · **Node:** `>=18` · **License:** MIT
+**Package:** `@rodrigopjax/dockup` **v2.0.0** · **Binary:** `dockup` · **Node:** `>=18` · **License:** MIT
+
+> **v2.0** is Compose-complete: `imageRef`, healthchecks, `dependsOn` conditions, multi-network/volume, labels, resource limits, and a `compose` escape hatch. Upgrading from v1.x? See [docs/migration-v2.md](docs/migration-v2.md).
 
 ---
 
@@ -77,7 +80,7 @@
 | `--skip-build`                | Skip `docker build` phase                                                    |
 | `--skip-push`                 | Skip `docker push` phase                                                     |
 | `--generate-only`             | Sets both `--skip-build` and `--skip-push`; only generates compose artifacts |
-| `--dry-run`                   | Log docker commands without executing them                                   |
+| `--dry-run`                   | Log docker commands without executing them; skips `docker compose config`    |
 
 ### Deploy pipeline phases (in order)
 
@@ -86,7 +89,7 @@
 3. **Build** — `docker build` per container with `context` and `image` (skipped for `imageRef`-only or `--skip-build`)
 4. **Push** — `docker push` per built image (skipped for `imageRef`-only or `--skip-push`)
 5. **Generate** — write `out/<env>/docker-compose.yml` and `.env`
-6. **Validate compose** — `docker compose config` on generated files
+6. **Validate compose** — `docker compose config` on generated files (skipped with `--dry-run`)
 
 Containers **without** `context` and with `imageRef` are pull-only (no build/push). Built containers use `image` + optional `context`.
 
@@ -129,21 +132,32 @@ Each container requires **`image`** (built) **or** `imageRef` (pull-only):
 - Environment `env[]` defines symbols; supports chaining (`"value": "http://${HOST}"`)
 - `global: true` on environment env entry injects into **every** container at runtime
 - Container `env[]` and `buildArgs[]` resolve against environment symbols only (not other containers)
+- Compose fields (`command`, `entrypoint`, `labels`, `healthcheck.test`, `extraHosts.host`, `imageRef`) interpolate at render time
+- Built `image` templates (`${DOCKER_IMAGE_ROOT}/...`) resolve via `.env` at compose runtime, not at render
 - Circular references and missing symbols → validation error
 
-### Image reference format
+### Image modes
+
+**Built** (`image` + optional `context`) — dockup builds, pushes, and emits:
+
+```yaml
+image: ${DOCKER_IMAGE_ROOT}/<image>:${DOCKER_TAG}
+```
+
+**Pull-only** (`imageRef`, no `context`) — literal image in compose; build/push skipped:
+
+```json
+{ "id": "traefik", "imageRef": "traefik:v3.3" }
+```
+
+Built image reference for registry:
 
 ```
 <registry>/<namespace>/<image>:<tag>   # when registry is set
 <namespace>/<image>:<tag>             # when registry is omitted
 ```
 
-Compose services use: `${DOCKER_IMAGE_ROOT}/<image>:${DOCKER_TAG}` where `.env` sets:
-
-```
-DOCKER_IMAGE_ROOT=<registry>/<namespace> or <namespace>
-DOCKER_TAG=<tag>
-```
+`.env` sets `DOCKER_IMAGE_ROOT` and `DOCKER_TAG` for built services only.
 
 ### Exit codes
 
@@ -223,19 +237,20 @@ Use `--json` on root **or** subcommand; both work for success and failure.
 - Does not run `docker compose up` on the target server
 - Does not manage secrets beyond reading local `~/.docker/config.json` for auth warnings
 - Does not support legacy `*.deploy.json` or `env=prod` syntax (see [docs/migration-v1.md](docs/migration-v1.md))
+- Does not support v1 `dependsOn: ["api"]` shorthand (see [docs/migration-v2.md](docs/migration-v2.md))
 - Does not auto-detect config outside cwd (must pass `--config` or run from config directory)
 
 ---
 
 ## What dockup does
 
-dockup turns a **declarative JSON config** into a **repeatable deploy pipeline**:
+dockup turns a **declarative JSON config** into a **repeatable deploy pipeline** — built services **and** pull-only images (Traefik, Postgres, Redis) in one compose file:
 
 ```
 *.dockup.json  →  docker build  →  docker push  →  out/<env>/  →  VPS: docker compose up
 ```
 
-**Typical use case:** a monorepo with multiple services, multiple environments (`dev`, `staging`, `prod`), and a CI job that builds, pushes to `ghcr.io`, and produces compose files ready to copy to a VPS.
+**Typical use case:** a monorepo with multiple services, multiple environments (`dev`, `staging`, `prod`), mixed built + `imageRef` services, and a CI job that builds, pushes to `ghcr.io`, and produces compose files ready to copy to a VPS.
 
 ```mermaid
 flowchart LR
@@ -256,12 +271,13 @@ flowchart LR
 
 ```bash
 npm install -g @rodrigopjax/dockup
+dockup --version   # 2.0.0
 ```
 
 Or run without installing:
 
 ```bash
-npx @rodrigopjax/dockup --help
+npx @rodrigopjax/dockup@2 --help
 ```
 
 ---
@@ -386,7 +402,7 @@ Interactive mode (default) shows a **listr2** task tree:
 | JSON                  | `--json`    | Single JSON object on stdout; no banner, no listr2     |
 | Quiet                 | `--quiet`   | Errors/warnings only; no banner, no listr2, no summary |
 | Verbose               | `--verbose` | Debug log lines                                        |
-| Dry run               | `--dry-run` | Logs docker commands with `[dry-run]` prefix           |
+| Dry run               | `--dry-run` | Logs docker commands; skips `docker compose config`    |
 
 ---
 
@@ -493,6 +509,43 @@ See [`examples/full-stack.dockup.json`](examples/full-stack.dockup.json) and [`e
 
 For Tier 1+2 fields (Traefik, healthcheck, labels, `imageRef`), see [`examples/compose-complete.dockup.json`](examples/compose-complete.dockup.json).
 
+### Compose-complete snippet (v2)
+
+Gateway + built app + pull-only Traefik in one file:
+
+```json
+{
+  "prod": {
+    "namespace": "myorg",
+    "network": "edge",
+    "registry": "ghcr.io",
+    "containers": [
+      {
+        "id": "traefik",
+        "imageRef": "traefik:v3.3",
+        "ports": [{ "host": 80, "container": 80 }]
+      },
+      {
+        "id": "api",
+        "image": "my-api",
+        "context": "services/api",
+        "healthcheck": {
+          "test": ["CMD", "curl", "-f", "http://localhost:8080/health"],
+          "interval": "10s"
+        }
+      },
+      {
+        "id": "web",
+        "image": "my-web",
+        "context": "services/web",
+        "dependsOn": [{ "id": "api", "condition": "service_healthy" }],
+        "labels": ["traefik.enable=true"]
+      }
+    ]
+  }
+}
+```
+
 Upgrading from v1.x? See [docs/migration-v2.md](docs/migration-v2.md).
 
 ### VS Code autocomplete
@@ -591,7 +644,7 @@ Beyond JSON Schema, dockup enforces:
 - Volume mounts use `name` or `host`, not both; named volumes can be declared in `environment.volumes` for `external`/`driver` options
 - Unique names in `environment.networks[]` and `environment.volumes[]`
 - `envFile` paths exist relative to config directory
-- `buildArgs` requires `context`
+- `buildArgs`, `platform`, and `buildTarget` require `context`
 - Build context directory and Dockerfile exist on disk (relative to `--root`)
 - All `${VAR}` symbols resolve without cycles
 - No duplicate env/buildArg names within same scope
@@ -699,15 +752,19 @@ my-project/
 
 ## Troubleshooting
 
-| Problem                          | Cause                               | Fix                                            |
-| -------------------------------- | ----------------------------------- | ---------------------------------------------- |
-| `No *.dockup.json config found`  | No config in cwd                    | `dockup init` or `--config <path>`             |
-| `Ambiguous config`               | Multiple `*.dockup.json` files      | Remove extras or `--config`                    |
-| `buildArgs but no build context` | `buildArgs` without `context`       | Add `context` or remove `buildArgs`            |
-| `Unresolved symbol`              | `${VAR}` not in environment `env[]` | Define symbol at environment level             |
-| `Build context not found`        | Wrong `--root` or path              | Fix `context` or pass `--root`                 |
-| Push fails                       | Not logged into registry            | `docker login ghcr.io` (or your registry)      |
-| Human errors in CI with `--json` | Flag placement                      | Use `--json` on root or subcommand (both work) |
+| Problem                            | Cause                               | Fix                                            |
+| ---------------------------------- | ----------------------------------- | ---------------------------------------------- |
+| `No *.dockup.json config found`    | No config in cwd                    | `dockup init` or `--config <path>`             |
+| `Ambiguous config`                 | Multiple `*.dockup.json` files      | Remove extras or `--config`                    |
+| `buildArgs but no build context`   | `buildArgs` without `context`       | Add `context` or remove `buildArgs`            |
+| `both "image" and "imageRef"`      | Mixed image modes on one container  | Use `image`+`context` or `imageRef` alone      |
+| `imageRef with build context`      | `imageRef` + `context`              | Use `imageRef` for pull-only, `image` to build |
+| `service_healthy` / no healthcheck | Target lacks `healthcheck`          | Add `healthcheck` to the dependency target     |
+| `dependsOn: ["api"]` (v1 syntax)   | String array no longer valid        | Use `[{ "id": "api" }]` — see migration-v2     |
+| `Unresolved symbol`                | `${VAR}` not in environment `env[]` | Define symbol at environment level             |
+| `Build context not found`          | Wrong `--root` or path              | Fix `context` or pass `--root`                 |
+| Push fails                         | Not logged into registry            | `docker login ghcr.io` (or your registry)      |
+| Human errors in CI with `--json`   | Flag placement                      | Use `--json` on root or subcommand (both work) |
 
 ---
 
@@ -737,11 +794,13 @@ npm run lint
 
 ## Release
 
-Published to npm on semver tag push:
+**Current:** `@rodrigopjax/dockup@2.0.0` on [npm](https://www.npmjs.com/package/@rodrigopjax/dockup).
+
+Published automatically on semver tag push:
 
 ```bash
 git tag v2.0.0
-git push origin v2.0.0
+git push origin main --tags
 ```
 
 Requires `NPM_TOKEN` secret in GitHub repository settings.
