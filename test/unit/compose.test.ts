@@ -17,6 +17,10 @@ const config = JSON.parse(
   readFileSync(join(repoRoot, "examples/full-stack.dockup.json"), "utf8"),
 ) as DockupConfig;
 
+function normalizeEol(text: string): string {
+  return text.replace(/\r\n/g, "\n");
+}
+
 describe("full-stack example prod compose", () => {
   const resolved = getEnvironment(config, "prod");
   const doc = buildComposeDocument(resolved, resolved.env, resolved.containers);
@@ -44,7 +48,7 @@ describe("full-stack example prod compose", () => {
       join(repoRoot, "test/fixtures/expected/full-stack-prod.compose.yml"),
       "utf8",
     );
-    assert.equal(yaml, expected);
+    assert.equal(normalizeEol(yaml), normalizeEol(expected));
   });
 });
 
