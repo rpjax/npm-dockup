@@ -8,12 +8,22 @@ import type { ContainerConfig, ResolvedEnvironment } from "../../src/config/type
 import { buildContainer } from "../../src/docker/build.js";
 import { Logger } from "../../src/logger/index.js";
 
-const dockerAvailable = spawnSync("docker", ["version"], { encoding: "utf8" }).status === 0;
+function isDockerBuildAvailable(): boolean {
+  const version = spawnSync("docker", ["version"], { encoding: "utf8" });
+  if (version.status !== 0) {
+    return false;
+  }
+
+  const info = spawnSync("docker", ["info", "--format", "{{.ServerVersion}}"], { encoding: "utf8" });
+  return info.status === 0 && info.stdout.trim().length > 0;
+}
+
+const dockerBuildAvailable = isDockerBuildAvailable();
 
 describe("buildContainer with spaced repo paths", () => {
   it(
     "builds when repo root path contains spaces",
-    { skip: dockerAvailable ? false : "Docker is not available" },
+    { skip: dockerBuildAvailable ? false : "Docker daemon is not available" },
     async () => {
       const repoRoot = mkdtempSync(join(tmpdir(), "dockup test space-"));
       const contextDir = join(repoRoot, "context");
