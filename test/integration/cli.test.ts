@@ -65,6 +65,42 @@ describe("dockup CLI", () => {
       "--quiet",
     ]);
     assert.equal(result.status, 0, result.stderr);
-    assert.doesNotMatch(result.stdout, /Summary|Completed in/);
+    assert.doesNotMatch(result.stdout, /Run report|Completed in/);
+  });
+
+  it("deploy generate-only prints run report with environment", () => {
+    const result = runDockup([
+      "deploy",
+      "--env",
+      "prod",
+      "--generate-only",
+      "--config",
+      "examples/minimal.dockup.json",
+    ]);
+    assert.equal(result.status, 0, result.stderr);
+    assert.match(result.stdout, /Run report/);
+    assert.match(result.stdout, /Environment\s+prod/);
+    assert.match(result.stdout, /Next steps/);
+  });
+
+  it("deploy json stdout is a single parseable object with report", () => {
+    const result = runDockup([
+      "deploy",
+      "--env",
+      "prod",
+      "--generate-only",
+      "--config",
+      "examples/minimal.dockup.json",
+      "--json",
+    ]);
+    assert.equal(result.status, 0, result.stderr);
+    const payload = JSON.parse(result.stdout.trim()) as {
+      ok: boolean;
+      report: { environment: string };
+      nextSteps: string[];
+    };
+    assert.equal(payload.ok, true);
+    assert.equal(payload.report.environment, "prod");
+    assert.ok(Array.isArray(payload.nextSteps));
   });
 });

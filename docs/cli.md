@@ -21,6 +21,18 @@ dockup --version
 dockup --help
 ```
 
+## Global flags
+
+| Flag              | Description                                              |
+| ----------------- | -------------------------------------------------------- |
+| `--config, -c`    | Explicit path to `*.dockup.json`                         |
+| `--root, -r`      | Repository root for build contexts (default: `.`)        |
+| `--json`          | Structured JSON on stdout (no subprocess terminal output) |
+| `--quiet, -q`     | Errors and warnings only                                 |
+| `--verbose, -v`   | Debug logging with timestamps                            |
+| `--stream-logs`   | Framed full subprocess output                            |
+| `--with-logs`     | Include captured subprocess logs in JSON deploy output   |
+
 ## `dockup deploy`
 
 Builds images (built services only), pushes to registry, generates `out/<env>/docker-compose.yml` and `.env`, then validates with `docker compose config`. Containers with `imageRef` skip build/push.
@@ -28,18 +40,13 @@ Builds images (built services only), pushes to registry, generates `out/<env>/do
 | Flag              | Description                                                             |
 | ----------------- | ----------------------------------------------------------------------- |
 | `--env, -e`       | Environment key (required)                                              |
-| `--config, -c`    | Explicit path to `*.dockup.json`                                        |
-| `--root, -r`      | Repository root for build contexts (default: `.`)                       |
 | `--only`          | Build/push only one container id                                        |
 | `--skip-build`    | Skip docker build                                                       |
 | `--skip-push`     | Skip docker push                                                        |
 | `--generate-only` | Generate compose artifacts only                                         |
 | `--dry-run`       | Log docker commands without running them; skips `docker compose config` |
-| `--json`          | Structured JSON output                                                  |
-| `--quiet, -q`     | Errors only                                                             |
-| `--verbose, -v`   | Debug logging                                                           |
 
-Interactive deploy runs show a listr2 task list (Config → Preflight → Build → Push → Generate → Validate). Use `--json` or `--quiet` for machine-readable or minimal output without the task list.
+Interactive deploy runs show a listr2 task list (Config → Preflight → Build → Push → Generate → Validate) with **peek** subprocess output under active tasks, then a **Run Report** and **Next steps**. With `--stream-logs`, the pipeline runs in linear mode with framed panels instead of Listr. Use `--json` or `--quiet` for machine-readable or minimal output.
 
 ### Examples
 
@@ -48,6 +55,8 @@ dockup deploy --env prod
 dockup deploy --env dev --only api
 dockup deploy --env prod --generate-only --root .
 dockup deploy --env prod --config ./deploy/app.dockup.json --dry-run
+dockup deploy --env prod --json --with-logs
+dockup deploy --env prod --stream-logs
 ```
 
 ## `dockup validate`
@@ -64,11 +73,8 @@ dockup --json validate --config ./app.dockup.json
 | Flag            | Description                                       |
 | --------------- | ------------------------------------------------- |
 | `--env, -e`     | Validate one environment (default: all)           |
-| `--config, -c`  | Explicit path to `*.dockup.json`                  |
-| `--root, -r`    | Repository root for build contexts (default: `.`) |
-| `--json`        | Structured JSON output                            |
-| `--quiet, -q`   | Errors and warnings only                          |
-| `--verbose, -v` | Debug logging                                     |
+
+Successful human-mode runs print a Run Report and next steps.
 
 ## `dockup init`
 
@@ -104,9 +110,26 @@ Success (`deploy`):
   "built": ["api"],
   "pushed": ["api"],
   "artifacts": ["out/prod/docker-compose.yml", "out/prod/.env"],
-  "elapsedSec": 42.1
+  "elapsedSec": 42.1,
+  "report": {
+    "elapsedSec": 42.1,
+    "environment": "prod",
+    "namespace": "myorg",
+    "registry": "ghcr.io",
+    "tag": "prod",
+    "built": ["api"],
+    "pushed": ["api"],
+    "artifacts": ["out/prod/docker-compose.yml", "out/prod/.env"],
+    "images": ["ghcr.io/myorg/my-api:prod"],
+    "skipped": { "build": false, "push": false, "generateOnly": false, "dryRun": false }
+  },
+  "nextSteps": [
+    "docker compose -f out/prod/docker-compose.yml --env-file out/prod/.env up -d"
+  ]
 }
 ```
+
+With `--with-logs`, a `logs.processes` array is included (phase, command, stdout, stderr, exitCode, durationMs).
 
 Failure:
 
@@ -117,6 +140,8 @@ Failure:
   "message": "Environment \"prod\" resolution failed: Unresolved symbol \"MISSING\".",
   "hint": null,
   "detail": null,
-  "cause": null
+  "cause": null,
+  "elapsedSec": 0.1,
+  "exitCode": 1
 }
 ```

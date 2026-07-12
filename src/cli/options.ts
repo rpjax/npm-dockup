@@ -4,6 +4,8 @@ export interface GlobalOptions {
   json: boolean;
   quiet: boolean;
   verbose: boolean;
+  streamLogs: boolean;
+  withLogs: boolean;
 }
 
 export interface DeployOptions extends GlobalOptions {
@@ -31,6 +33,8 @@ export interface CommanderGlobalOpts {
   json?: boolean;
   quiet?: boolean;
   verbose?: boolean;
+  streamLogs?: boolean;
+  withLogs?: boolean;
 }
 
 export interface CommanderDeployOpts extends CommanderGlobalOpts {
@@ -53,6 +57,8 @@ export function globalFromCommander(opts: CommanderGlobalOpts): GlobalOptions {
     json: Boolean(opts.json),
     quiet: Boolean(opts.quiet),
     verbose: Boolean(opts.verbose),
+    streamLogs: Boolean(opts.streamLogs),
+    withLogs: Boolean(opts.withLogs),
   };
 }
 
@@ -89,6 +95,6 @@ export function initFromCommander(
   };
 }
 
-export function useListr(options: Pick<GlobalOptions, "json" | "quiet">): boolean {
-  return !options.json && !options.quiet;
+export function useListr(options: Pick<GlobalOptions, "json" | "quiet" | "streamLogs">): boolean {
+  return !options.json && !options.quiet && !options.streamLogs;
 }

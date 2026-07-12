@@ -70,9 +70,11 @@
 | ----------------- | ----- | ------------- | ------------------------------------------------------------- |
 | `--config <path>` | `-c`  | auto-discover | Explicit path to `*.dockup.json`                              |
 | `--root <path>`   | `-r`  | `.`           | Repository root for resolving `container.context` build paths |
-| `--json`          |       | off           | Structured JSON on stdout; suppresses banners and listr2      |
-| `--quiet`         | `-q`  | off           | Errors and warnings only; no listr2, no summary               |
-| `--verbose`       | `-v`  | off           | Debug logging                                                 |
+| `--json`          |       | off           | Structured JSON on stdout; suppresses UI and subprocess output |
+| `--quiet`         | `-q`  | off           | Errors and warnings only; no listr2, no Run Report               |
+| `--verbose`       | `-v`  | off           | Debug logging with timestamps                                    |
+| `--stream-logs`   |       | off           | Framed full subprocess output (legacy v2.0-style verbosity)    |
+| `--with-logs`     |       | off           | Include captured subprocess logs in JSON deploy output           |
 | `--version`       | `-V`  |               | Print version from `package.json`                             |
 | `--help`          | `-h`  |               | Commander-generated help                                      |
 
@@ -435,23 +437,23 @@ Interactive mode (default) shows a **listr2** task tree:
 - Registry credentials in `~/.docker/config.json` (warning only if missing)
 - Logs working directory, config path, and repository root
 
-**Build:** runs from `--root` + `container.context`. Docker stdout is inherited (live build logs).
+**Build:** runs from `--root` + `container.context`. Default **peek mode** shows the last few framed Docker lines under each Listr subtask; use `--stream-logs` for full framed panels.
 
-**Generate:** produces Compose v3-style YAML with services, networks, and named volumes.
-
-**Validate compose:** runs `docker compose config` to catch invalid generated YAML.
+**Run Report:** every successful human-mode command ends with a structured summary (environment, built/pushed, artifacts, images) and contextual next steps.
 
 ---
 
 ## Output modes
 
-| Mode                  | Flag        | Behavior                                               |
-| --------------------- | ----------- | ------------------------------------------------------ |
-| Interactive (default) | —           | listr2 task tree + brief completion message            |
-| JSON                  | `--json`    | Single JSON object on stdout; no banner, no listr2     |
-| Quiet                 | `--quiet`   | Errors/warnings only; no banner, no listr2, no summary |
-| Verbose               | `--verbose` | Debug log lines                                        |
-| Dry run               | `--dry-run` | Logs docker commands; skips `docker compose config`    |
+| Mode                  | Flag        | Behavior                                                       |
+| --------------------- | ----------- | -------------------------------------------------------------- |
+| Interactive (default) | —           | listr2 task tree + peek subprocess output + Run Report         |
+| Stream logs           | `--stream-logs` | Linear pipeline with framed subprocess panels (no Listr)   |
+| JSON                  | `--json`    | Single JSON object on stdout; `report` + `nextSteps` included  |
+| JSON + logs           | `--json --with-logs` | Same, plus captured subprocess output in `logs.processes` |
+| Quiet                 | `--quiet`   | Errors/warnings only; no listr2, no Run Report                 |
+| Verbose               | `--verbose` | Debug log lines with timestamps                            |
+| Dry run               | `--dry-run` | Logs docker commands; skips `docker compose config`            |
 
 ---
 

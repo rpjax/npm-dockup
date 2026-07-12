@@ -1,39 +1,61 @@
 import { spawn } from "node:child_process";
 import { DockupError, type ErrorPhase } from "../errors/index.js";
 import type { Logger } from "../logger/index.js";
+import type { ProcessCapture } from "../output/capture.js";
+import type { OutputSink } from "../output/coordinator.js";
+import { splitLines } from "../output/normalize.js";
+import type { SubprocessVisibility } from "../output/visibility.js";
 
-const TAIL_LINES = 24;
+export const TAIL_LINES = 24;
 
-function tailText(text: string | undefined, lines = TAIL_LINES): string {
+export function tailText(text: string | undefined, lines = TAIL_LINES): string {
   if (!text?.trim()) {
     return "";
   }
   return text.trimEnd().split("\n").slice(-lines).join("\n");
 }
 
+export interface RunCommandResult {
+  stdout: string;
+  stderr: string;
+  exitCode: number;
+  durationMs: number;
+  command: string;
+  capture?: ProcessCapture;
+}
+
 export interface RunCommandOptions {
   phase: ErrorPhase;
   label?: string;
-  inherit?: boolean;
   cwd: string;
   dryRun?: boolean;
   log: Logger;
+  visibility?: SubprocessVisibility;
+  sink?: OutputSink;
+  isPush?: boolean;
 }
 
 export function runCommand(
   command: string,
   args: string[],
   options: RunCommandOptions,
-): Promise<{ stdout: string; stderr: string }> {
+): Promise<RunCommandResult> {
   const cmdLine = [command, ...args].join(" ");
   options.log.step(options.phase, options.label ?? cmdLine);
 
   if (options.dryRun) {
     options.log.info(options.phase, `[dry-run] ${cmdLine}`);
-    return Promise.resolve({ stdout: "", stderr: "" });
+    return Promise.resolve({
+      stdout: "",
+      stderr: "",
+      exitCode: 0,
+      durationMs: 0,
+      command: cmdLine,
+    });
   }
 
   return new Promise((resolvePromise, rejectPromise) => {
+    const startedAt = Date.now();
     const child = spawn(command, args, {
       shell: false,
       env: process.env,
@@ -43,21 +65,20 @@ export function runCommand(
     let stdout = "";
     let stderr = "";
 
-    child.stdout?.on("data", (chunk: Buffer) => {
+    const feed = (stream: "stdout" | "stderr", chunk: Buffer) => {
       const text = chunk.toString();
-      stdout += text;
-      if (options.inherit !== false) {
-        process.stdout.write(chunk);
+      if (stream === "stdout") {
+        stdout += text;
+      } else {
+        stderr += text;
       }
-    });
+      if (options.sink) {
+        options.sink.feed(stream, text);
+      }
+    };
 
-    child.stderr?.on("data", (chunk: Buffer) => {
-      const text = chunk.toString();
-      stderr += text;
-      if (options.inherit !== false) {
-        process.stderr.write(chunk);
-      }
-    });
+    child.stdout?.on("data", (chunk: Buffer) => feed("stdout", chunk));
+    child.stderr?.on("data", (chunk: Buffer) => feed("stderr", chunk));
 
     child.on("error", (err: NodeJS.ErrnoException) => {
       rejectPromise(
@@ -69,8 +90,19 @@ export function runCommand(
     });
 
     child.on("close", (code, signal) => {
+      const exitCode = code ?? 1;
+      const durationMs = Date.now() - startedAt;
+      const capture = options.sink?.complete(exitCode);
+
       if (code === 0) {
-        resolvePromise({ stdout, stderr });
+        resolvePromise({
+          stdout,
+          stderr,
+          exitCode: 0,
+          durationMs,
+          command: cmdLine,
+          capture,
+        });
         return;
       }
 
@@ -89,4 +121,13 @@ export function runCommand(
       );
     });
   });
+}
+
+export function feedLinesToSink(sink: OutputSink, text: string, stream: "stdout" | "stderr"): void {
+  if (!text) {
+    return;
+  }
+  for (const line of splitLines(text)) {
+    sink.feed(stream, `${line}\n`);
+  }
 }

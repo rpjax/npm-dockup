@@ -1,7 +1,8 @@
 import { Command, Option } from "commander";
-import { DockupError, ResolveError, type ErrorPhase } from "../errors/index.js";
+import { basename } from "node:path";
+import { DockupError, ResolveError } from "../errors/index.js";
 import { Logger } from "../logger/index.js";
-import { EXIT, type ExitCode } from "./exit-codes.js";
+import { EXIT, exitCodeForPhase, type ExitCode } from "./exit-codes.js";
 import {
   deployFromCommander,
   initFromCommander,
@@ -14,6 +15,10 @@ import { runDeploy } from "./commands/deploy.js";
 import { runValidate } from "./commands/validate.js";
 import { runInit } from "./commands/init.js";
 import { getVersion } from "../version.js";
+import { createRunContext, type RunContext } from "./run-context.js";
+import { loadValidatedConfig } from "./context.js";
+import { printErrorPanel } from "../ux/error-panel.js";
+import { printSessionHeader } from "../ux/session.js";
 
 export function readPackageVersion(): string {
   return getVersion();
@@ -25,14 +30,18 @@ function addGlobalOptions(command: Command): Command {
     .option("-r, --root <path>", "repository root for build contexts", ".")
     .option("--json", "structured JSON output")
     .option("-q, --quiet", "errors and warnings only")
-    .option("-v, --verbose", "debug logging");
+    .option("-v, --verbose", "debug logging")
+    .addOption(new Option("--stream-logs", "stream full subprocess output in framed panels"))
+    .addOption(new Option("--with-logs", "include captured subprocess logs in JSON output"));
 }
 
 function addOutputOptions(command: Command): Command {
   return command
     .option("--json", "structured JSON output")
     .option("-q, --quiet", "errors and warnings only")
-    .option("-v, --verbose", "debug logging");
+    .option("-v, --verbose", "debug logging")
+    .addOption(new Option("--stream-logs", "stream full subprocess output in framed panels"))
+    .addOption(new Option("--with-logs", "include captured subprocess logs in JSON output"));
 }
 
 export function mergeCommanderGlobal(
@@ -45,10 +54,13 @@ export function mergeCommanderGlobal(
     json: Boolean(local.json || root.json),
     quiet: Boolean(local.quiet || root.quiet),
     verbose: Boolean(local.verbose || root.verbose),
+    streamLogs: Boolean(local.streamLogs || root.streamLogs),
+    withLogs: Boolean(local.withLogs || root.withLogs),
   };
 }
 
-function printJsonError(err: DockupError | ResolveError): void {
+function printJsonError(err: DockupError | ResolveError, startedAt: number): void {
+  const elapsedSec = Number(((Date.now() - startedAt) / 1000).toFixed(1));
   const payload =
     err instanceof DockupError
       ? {
@@ -58,6 +70,8 @@ function printJsonError(err: DockupError | ResolveError): void {
           hint: err.hint ?? null,
           detail: err.detail ?? null,
           cause: err.causeText ?? null,
+          elapsedSec,
+          exitCode: exitCodeForPhase(err.phase),
         }
       : {
           ok: false,
@@ -66,70 +80,63 @@ function printJsonError(err: DockupError | ResolveError): void {
           hint: null,
           detail: null,
           cause: null,
+          elapsedSec,
+          exitCode: EXIT.CLI_CONFIG,
         };
   console.log(JSON.stringify(payload, null, 2));
 }
 
-export function exitCodeForPhase(phase: ErrorPhase): ExitCode {
-  if (phase === "CLI" || phase === "CONFIG" || phase === "GENERATE") {
-    return EXIT.CLI_CONFIG;
-  }
-  if (phase === "RUNTIME") {
-    return EXIT.RUNTIME;
-  }
-  return EXIT.DOCKER;
-}
-
 export function handleFatal(
   err: unknown,
-  log: Logger,
+  run: RunContext,
   json: boolean,
-  options: { interactive?: boolean } = {},
 ): ExitCode {
-  const interactive = options.interactive ?? false;
-
   if (err instanceof DockupError) {
     if (json) {
-      printJsonError(err);
-    } else if (!interactive) {
-      log.section("dockup failed");
-      log.error(err.phase, err.message, { detail: err.detail });
-      if (err.causeText) {
-        log.error(err.phase, `Cause: ${err.causeText}`);
-      }
-      if (err.hint) {
-        log.warn(err.phase, `Hint: ${err.hint}`);
-      }
-      const elapsed = ((Date.now() - log.startedAt) / 1000).toFixed(1);
-      console.log(`Elapsed: ${elapsed}s`);
-    } else if (err.hint) {
-      log.warn(err.phase, `Hint: ${err.hint}`);
+      printJsonError(err, run.log.startedAt);
+    } else {
+      printErrorPanel({ err, startedAt: run.log.startedAt });
     }
     return exitCodeForPhase(err.phase);
   }
 
   if (err instanceof ResolveError) {
     if (json) {
-      printJsonError(err);
+      printJsonError(err, run.log.startedAt);
     } else {
-      log.section("dockup failed");
-      log.error("CONFIG", err.message);
+      printErrorPanel({
+        err: new DockupError("CONFIG", err.message),
+        startedAt: run.log.startedAt,
+      });
     }
     return EXIT.CLI_CONFIG;
   }
 
   const message = err instanceof Error ? err.message : String(err);
+  const runtimeErr = new DockupError("RUNTIME", "Unexpected error.", {
+    detail:
+      err instanceof Error && err.stack
+        ? err.stack.split("\n").slice(0, 6).join("\n")
+        : undefined,
+    cause: message,
+  });
+
   if (json) {
-    console.log(JSON.stringify({ ok: false, phase: "RUNTIME", message }, null, 2));
+    console.log(
+      JSON.stringify(
+        {
+          ok: false,
+          phase: "RUNTIME",
+          message,
+          elapsedSec: Number(((Date.now() - run.log.startedAt) / 1000).toFixed(1)),
+          exitCode: EXIT.RUNTIME,
+        },
+        null,
+        2,
+      ),
+    );
   } else {
-    log.section("dockup failed");
-    log.error("RUNTIME", "Unexpected error.", {
-      detail:
-        err instanceof Error && err.stack
-          ? err.stack.split("\n").slice(0, 6).join("\n")
-          : undefined,
-    });
-    log.error("RUNTIME", `Cause: ${message}`);
+    printErrorPanel({ err: runtimeErr, startedAt: run.log.startedAt });
   }
   return EXIT.RUNTIME;
 }
@@ -143,21 +150,57 @@ function createLogger(global: CommanderGlobalOpts, interactive = false): Logger 
   });
 }
 
-interface RunContext {
+interface AppRunContext {
   global: CommanderGlobalOpts;
-  log: Logger;
-  interactive: boolean;
+  run: RunContext;
 }
 
-function createRunContext(): RunContext {
+function createAppRunContext(): AppRunContext {
+  const global: CommanderGlobalOpts = {
+    json: false,
+    quiet: false,
+    streamLogs: false,
+    withLogs: false,
+  };
+  const log = createLogger(global, false);
   return {
     global: {},
-    log: createLogger({}),
-    interactive: false,
+    run: createRunContext(
+      { json: false, quiet: false, streamLogs: false, withLogs: false },
+      log,
+      false,
+    ),
   };
 }
 
-export function createProgram(runContext: RunContext = createRunContext()): Command {
+function deployHeaderFlags(opts: CommanderDeployOpts): string[] {
+  const flags: string[] = [];
+  if (opts.generateOnly) flags.push("--generate-only");
+  if (opts.dryRun) flags.push("--dry-run");
+  if (opts.only) flags.push(`--only ${opts.only}`);
+  if (opts.streamLogs) flags.push("--stream-logs");
+  return flags;
+}
+
+function printHumanHeader(
+  run: RunContext,
+  version: string,
+  command: string,
+  extra?: { env?: string; configBasename?: string; flags?: string[] },
+): void {
+  if (run.log.isJson || run.log.isQuiet) {
+    return;
+  }
+  printSessionHeader({
+    version,
+    command,
+    env: extra?.env,
+    configBasename: extra?.configBasename,
+    flags: extra?.flags,
+  });
+}
+
+export function createProgram(appContext: AppRunContext = createAppRunContext()): Command {
   const program = addGlobalOptions(
     new Command()
       .name("dockup")
@@ -167,13 +210,26 @@ export function createProgram(runContext: RunContext = createRunContext()): Comm
   );
 
   program.hook("preAction", (_thisCommand, actionCommand) => {
-    runContext.global = mergeCommanderGlobal(
+    appContext.global = mergeCommanderGlobal(
       program.opts() as CommanderGlobalOpts,
       actionCommand.opts() as CommanderGlobalOpts,
     );
-    runContext.interactive =
-      actionCommand.name() === "deploy" && !runContext.global.json && !runContext.global.quiet;
-    runContext.log = createLogger(runContext.global, runContext.interactive);
+    const interactive =
+      actionCommand.name() === "deploy" &&
+      !appContext.global.json &&
+      !appContext.global.quiet &&
+      !appContext.global.streamLogs;
+    const log = createLogger(appContext.global, interactive);
+    appContext.run = createRunContext(
+      {
+        json: Boolean(appContext.global.json),
+        quiet: Boolean(appContext.global.quiet),
+        streamLogs: Boolean(appContext.global.streamLogs),
+        withLogs: Boolean(appContext.global.withLogs),
+      },
+      log,
+      interactive,
+    );
   });
 
   addGlobalOptions(
@@ -187,20 +243,28 @@ export function createProgram(runContext: RunContext = createRunContext()): Comm
       .addOption(new Option("--generate-only", "generate compose artifacts only"))
       .addOption(new Option("--dry-run", "log docker commands without executing")),
   ).action(async (localOpts: CommanderDeployOpts) => {
-    const global = runContext.global;
+    const global = appContext.global;
     const options = deployFromCommander({ ...localOpts, ...global });
-    const log = runContext.log;
+    const run = appContext.run;
+    const version = readPackageVersion();
 
-    if (!options.json && !options.quiet) {
-      log.banner(readPackageVersion());
+    let configPath: string | undefined;
+    try {
+      configPath = loadValidatedConfig(options).configPath;
+    } catch {
+      // validation error handled in runDeploy
     }
 
+    printHumanHeader(run, version, "deploy", {
+      env: options.env,
+      configBasename: configPath ? basename(configPath) : undefined,
+      flags: deployHeaderFlags({ ...localOpts, ...global }),
+    });
+
     try {
-      await runDeploy(options, log);
+      await runDeploy(options, run, { version, configPath: configPath ?? "" });
     } catch (err) {
-      process.exitCode = handleFatal(err, log, Boolean(global.json), {
-        interactive: runContext.interactive,
-      });
+      process.exitCode = handleFatal(err, run, Boolean(global.json));
     }
   });
 
@@ -210,18 +274,27 @@ export function createProgram(runContext: RunContext = createRunContext()): Comm
       .description("validate *.dockup.json without Docker")
       .option("-e, --env <name>", "validate a single environment"),
   ).action((localOpts: CommanderValidateOpts) => {
-    const global = runContext.global;
+    const global = appContext.global;
     const options = validateFromCommander({ ...localOpts, ...global });
-    const log = runContext.log;
+    const run = appContext.run;
+    const version = readPackageVersion();
 
-    if (!options.json && !options.quiet) {
-      log.banner(readPackageVersion());
+    let configBasename: string | undefined;
+    try {
+      configBasename = basename(loadValidatedConfig(options).configPath);
+    } catch {
+      // header without config if discovery fails later
     }
 
+    printHumanHeader(run, version, "validate", {
+      configBasename,
+      env: options.env,
+    });
+
     try {
-      runValidate(options, log);
+      runValidate(options, run);
     } catch (err) {
-      process.exitCode = handleFatal(err, log, Boolean(global.json));
+      process.exitCode = handleFatal(err, run, Boolean(global.json));
     }
   });
 
@@ -231,18 +304,21 @@ export function createProgram(runContext: RunContext = createRunContext()): Comm
       .description("create a *.dockup.json from the minimal template")
       .argument("[name]", "config base name", "app"),
   ).action((name: string, _localOpts: CommanderGlobalOpts) => {
-    const global = runContext.global;
+    const global = appContext.global;
     const options = initFromCommander(name, global);
-    const log = runContext.log;
+    const run = appContext.run;
+    const version = readPackageVersion();
 
-    if (!options.json && !options.quiet) {
-      log.banner(readPackageVersion());
-    }
+    printHumanHeader(run, version, "init", {
+      configBasename: options.name.endsWith(".dockup.json")
+        ? options.name
+        : `${options.name}.dockup.json`,
+    });
 
     try {
-      runInit(options, log);
+      runInit(options, run);
     } catch (err) {
-      process.exitCode = handleFatal(err, log, Boolean(global.json));
+      process.exitCode = handleFatal(err, run, Boolean(global.json));
     }
   });
 
@@ -250,13 +326,16 @@ export function createProgram(runContext: RunContext = createRunContext()): Comm
 }
 
 export async function runCli(argv: string[]): Promise<void> {
-  const runContext = createRunContext();
-  const program = createProgram(runContext);
+  const appContext = createAppRunContext();
+  const program = createProgram(appContext);
 
   try {
     await program.parseAsync(argv, { from: "user" });
   } catch (err) {
-    const { global, log, interactive } = runContext;
-    process.exitCode = handleFatal(err, log, Boolean(global.json), { interactive });
+    const { global, run } = appContext;
+    process.exitCode = handleFatal(err, run, Boolean(global.json));
   }
 }
+
+// Re-export for tests that import from program.ts
+export { exitCodeForPhase };

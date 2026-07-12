@@ -5,6 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.0] - 2026-07-12
+
+### Added
+
+- **Hosted subprocess output:** peek mode (default) shows the last few framed lines via Listr; no raw Docker flood on stdout
+- **`--stream-logs`:** framed panel streaming for full subprocess output (replaces v2.0 inherit behavior)
+- **`--with-logs`:** include captured subprocess output in JSON deploy responses
+- **Run Report:** unified end-of-run summary for deploy, validate, and init (environment, built/pushed, artifacts, images)
+- **Next steps:** contextual follow-up commands after each successful command
+- **Session header:** compact command context at the start of interactive runs
+- JSON success payloads now include `report` and `nextSteps`; JSON errors include `elapsedSec` and `exitCode`
+
+### Changed
+
+- Deploy interactive mode now shows the same rich Run Report as linear mode (no more minimal `deployComplete`)
+- Logger timestamps only appear with `--verbose`
+- `--json` stdout is guaranteed clean (subprocess output captured, not printed)
+
+### Fixed
+
+- Docker build/push logs no longer break Listr2 layout on Windows terminals
+- `--stream-logs` no longer interleaves panel output with Listr (uses linear pipeline)
+- Subprocess lines split across stdout chunks are reassembled correctly
+- Dry-run preflight summary no longer claims daemon OK when checks were skipped
+
 ## [2.0.2] - 2026-07-11
 
 ### Fixed

@@ -5,11 +5,16 @@ import { EXIT } from "../exit-codes.js";
 import type { InitOptions } from "../options.js";
 import { CONFIG_SUFFIX } from "../../config/discovery.js";
 import { fail } from "../../errors/index.js";
-import type { Logger } from "../../logger/index.js";
+import type { RunContext } from "../run-context.js";
+import {
+  printInitReport,
+  printNextStepsBlock,
+  resolveInitNextSteps,
+} from "../../ux/index.js";
 
 const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
 
-export function runInit(options: InitOptions, log: Logger): number {
+export function runInit(options: InitOptions, _run: RunContext): number {
   const targetName = options.name.endsWith(CONFIG_SUFFIX)
     ? options.name
     : `${options.name}${CONFIG_SUFFIX}`;
@@ -25,9 +30,22 @@ export function runInit(options: InitOptions, log: Logger): number {
   copyFileSync(templatePath, targetPath);
 
   if (options.json) {
-    console.log(JSON.stringify({ ok: true, command: "init", path: targetPath }, null, 2));
+    console.log(
+      JSON.stringify(
+        {
+          ok: true,
+          command: "init",
+          path: targetPath,
+          report: { path: targetPath, template: "minimal" },
+          nextSteps: resolveInitNextSteps(targetPath),
+        },
+        null,
+        2,
+      ),
+    );
   } else if (!options.quiet) {
-    log.ok("INIT", `Created ${targetPath}`);
+    printInitReport({ path: targetPath });
+    printNextStepsBlock(resolveInitNextSteps(targetPath));
   }
 
   return EXIT.OK;
