@@ -66,17 +66,17 @@
 
 ### Global flags (work on root and subcommands; can appear before or after subcommand)
 
-| Flag              | Short | Default       | Effect                                                        |
-| ----------------- | ----- | ------------- | ------------------------------------------------------------- |
-| `--config <path>` | `-c`  | auto-discover | Explicit path to `*.dockup.json`                              |
-| `--root <path>`   | `-r`  | `.`           | Repository root for resolving `container.context` build paths |
+| Flag              | Short | Default       | Effect                                                         |
+| ----------------- | ----- | ------------- | -------------------------------------------------------------- |
+| `--config <path>` | `-c`  | auto-discover | Explicit path to `*.dockup.json`                               |
+| `--root <path>`   | `-r`  | `.`           | Repository root for resolving `container.context` build paths  |
 | `--json`          |       | off           | Structured JSON on stdout; suppresses UI and subprocess output |
-| `--quiet`         | `-q`  | off           | Errors and warnings only; no listr2, no Run Report               |
-| `--verbose`       | `-v`  | off           | Debug logging with timestamps                                    |
+| `--quiet`         | `-q`  | off           | Errors and warnings only; no listr2, no Run Report             |
+| `--verbose`       | `-v`  | off           | Debug logging with timestamps                                  |
 | `--stream-logs`   |       | off           | Framed full subprocess output (legacy v2.0-style verbosity)    |
-| `--with-logs`     |       | off           | Include captured subprocess logs in JSON deploy output           |
-| `--version`       | `-V`  |               | Print version from `package.json`                             |
-| `--help`          | `-h`  |               | Commander-generated help                                      |
+| `--with-logs`     |       | off           | Include captured subprocess logs in JSON deploy output         |
+| `--version`       | `-V`  |               | Print version from `package.json`                              |
+| `--help`          | `-h`  |               | Commander-generated help                                       |
 
 ### Deploy-only flags
 
@@ -445,15 +445,15 @@ Interactive mode (default) shows a **listr2** task tree:
 
 ## Output modes
 
-| Mode                  | Flag        | Behavior                                                       |
-| --------------------- | ----------- | -------------------------------------------------------------- |
-| Interactive (default) | —           | listr2 task tree + peek subprocess output + Run Report         |
-| Stream logs           | `--stream-logs` | Linear pipeline with framed subprocess panels (no Listr)   |
-| JSON                  | `--json`    | Single JSON object on stdout; `report` + `nextSteps` included  |
-| JSON + logs           | `--json --with-logs` | Same, plus captured subprocess output in `logs.processes` |
-| Quiet                 | `--quiet`   | Errors/warnings only; no listr2, no Run Report                 |
-| Verbose               | `--verbose` | Debug log lines with timestamps                            |
-| Dry run               | `--dry-run` | Logs docker commands; skips `docker compose config`            |
+| Mode                  | Flag                 | Behavior                                                      |
+| --------------------- | -------------------- | ------------------------------------------------------------- |
+| Interactive (default) | —                    | listr2 task tree + peek subprocess output + Run Report        |
+| Stream logs           | `--stream-logs`      | Linear pipeline with framed subprocess panels (no Listr)      |
+| JSON                  | `--json`             | Single JSON object on stdout; `report` + `nextSteps` included |
+| JSON + logs           | `--json --with-logs` | Same, plus captured subprocess output in `logs.processes`     |
+| Quiet                 | `--quiet`            | Errors/warnings only; no listr2, no Run Report                |
+| Verbose               | `--verbose`          | Debug log lines with timestamps                               |
+| Dry run               | `--dry-run`          | Logs docker commands; skips `docker compose config`           |
 
 ---
 

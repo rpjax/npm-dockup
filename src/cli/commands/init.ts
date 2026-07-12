@@ -6,11 +6,7 @@ import type { InitOptions } from "../options.js";
 import { CONFIG_SUFFIX } from "../../config/discovery.js";
 import { fail } from "../../errors/index.js";
 import type { RunContext } from "../run-context.js";
-import {
-  printInitReport,
-  printNextStepsBlock,
-  resolveInitNextSteps,
-} from "../../ux/index.js";
+import { printInitReport, printNextStepsBlock, resolveInitNextSteps } from "../../ux/index.js";
 
 const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
 

@@ -4,6 +4,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, it } from "node:test";
+import { createRunContext } from "../../src/cli/run-context.js";
 import type { ContainerConfig, ResolvedEnvironment } from "../../src/config/types.js";
 import { buildContainer } from "../../src/docker/build.js";
 import { Logger } from "../../src/logger/index.js";
@@ -49,17 +50,23 @@ describe("buildContainer with spaced repo paths", () => {
       context: "context",
     };
 
+    const run = createRunContext(
+      { json: false, quiet: true, streamLogs: false, withLogs: false },
+      new Logger({ quiet: true }),
+      false,
+    );
+
     try {
-      const tag = await buildContainer({
+      const result = await buildContainer({
         resolved,
         container,
         repoRoot,
         configDir: repoRoot,
         environmentEnv: [],
-        log: new Logger({ quiet: true }),
+        run,
       });
 
-      assert.equal(tag, "dockup-test/space-test-image:space-test");
+      assert.equal(result.tag, "dockup-test/space-test-image:space-test");
     } finally {
       rmSync(repoRoot, { recursive: true, force: true });
     }

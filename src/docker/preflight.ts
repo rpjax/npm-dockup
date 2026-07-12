@@ -126,7 +126,9 @@ export async function preflight(options: {
         if (!run.interactive) {
           log.warn("PREFLIGHT", `No credentials found for registry ${registryLabel}.`, {
             detail: `Push target: ${imagePrefix}`,
-            hint: resolved.registry ? `Run: docker login ${resolved.registry}` : "Run: docker login",
+            hint: resolved.registry
+              ? `Run: docker login ${resolved.registry}`
+              : "Run: docker login",
           });
         }
       }

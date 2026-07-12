@@ -23,15 +23,15 @@ dockup --help
 
 ## Global flags
 
-| Flag              | Description                                              |
-| ----------------- | -------------------------------------------------------- |
-| `--config, -c`    | Explicit path to `*.dockup.json`                         |
-| `--root, -r`      | Repository root for build contexts (default: `.`)        |
-| `--json`          | Structured JSON on stdout (no subprocess terminal output) |
-| `--quiet, -q`     | Errors and warnings only                                 |
-| `--verbose, -v`   | Debug logging with timestamps                            |
-| `--stream-logs`   | Framed full subprocess output                            |
-| `--with-logs`     | Include captured subprocess logs in JSON deploy output   |
+| Flag            | Description                                               |
+| --------------- | --------------------------------------------------------- |
+| `--config, -c`  | Explicit path to `*.dockup.json`                          |
+| `--root, -r`    | Repository root for build contexts (default: `.`)         |
+| `--json`        | Structured JSON on stdout (no subprocess terminal output) |
+| `--quiet, -q`   | Errors and warnings only                                  |
+| `--verbose, -v` | Debug logging with timestamps                             |
+| `--stream-logs` | Framed full subprocess output                             |
+| `--with-logs`   | Include captured subprocess logs in JSON deploy output    |
 
 ## `dockup deploy`
 
@@ -70,9 +70,9 @@ dockup validate --config ./app.dockup.json --json
 dockup --json validate --config ./app.dockup.json
 ```
 
-| Flag            | Description                                       |
-| --------------- | ------------------------------------------------- |
-| `--env, -e`     | Validate one environment (default: all)           |
+| Flag        | Description                             |
+| ----------- | --------------------------------------- |
+| `--env, -e` | Validate one environment (default: all) |
 
 Successful human-mode runs print a Run Report and next steps.
 
@@ -123,9 +123,7 @@ Success (`deploy`):
     "images": ["ghcr.io/myorg/my-api:prod"],
     "skipped": { "build": false, "push": false, "generateOnly": false, "dryRun": false }
   },
-  "nextSteps": [
-    "docker compose -f out/prod/docker-compose.yml --env-file out/prod/.env up -d"
-  ]
+  "nextSteps": ["docker compose -f out/prod/docker-compose.yml --env-file out/prod/.env up -d"]
 }
 ```
 

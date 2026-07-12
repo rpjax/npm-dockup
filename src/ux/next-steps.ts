@@ -2,10 +2,7 @@ import pc from "picocolors";
 import type { DeployOptions } from "../cli/options.js";
 import type { DeployResult } from "../cli/deploy-tasks.js";
 
-export function resolveDeployNextSteps(
-  options: DeployOptions,
-  result: DeployResult,
-): string[] {
+export function resolveDeployNextSteps(options: DeployOptions, result: DeployResult): string[] {
   const composePath = result.artifacts[0];
   const envPath = result.artifacts[1];
   const steps: string[] = [];
@@ -41,10 +38,7 @@ export function resolveDeployNextSteps(
 
 export function resolveValidateNextSteps(envNames: string[]): string[] {
   const env = envNames[0] ?? "prod";
-  return [
-    `dockup deploy --env ${env} --generate-only`,
-    `dockup deploy --env ${env}`,
-  ];
+  return [`dockup deploy --env ${env} --generate-only`, `dockup deploy --env ${env}`];
 }
 
 export function resolveInitNextSteps(configPath: string): string[] {

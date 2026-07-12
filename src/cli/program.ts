@@ -86,11 +86,7 @@ function printJsonError(err: DockupError | ResolveError, startedAt: number): voi
   console.log(JSON.stringify(payload, null, 2));
 }
 
-export function handleFatal(
-  err: unknown,
-  run: RunContext,
-  json: boolean,
-): ExitCode {
+export function handleFatal(err: unknown, run: RunContext, json: boolean): ExitCode {
   if (err instanceof DockupError) {
     if (json) {
       printJsonError(err, run.log.startedAt);
@@ -115,9 +111,7 @@ export function handleFatal(
   const message = err instanceof Error ? err.message : String(err);
   const runtimeErr = new DockupError("RUNTIME", "Unexpected error.", {
     detail:
-      err instanceof Error && err.stack
-        ? err.stack.split("\n").slice(0, 6).join("\n")
-        : undefined,
+      err instanceof Error && err.stack ? err.stack.split("\n").slice(0, 6).join("\n") : undefined,
     cause: message,
   });
 

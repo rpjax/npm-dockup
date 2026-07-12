@@ -47,7 +47,10 @@ export class ProcessCaptureBuffer {
     return this.stdoutTruncated || this.stderrTruncated;
   }
 
-  toCapture(meta: Omit<ProcessCaptureMeta, "exitCode" | "durationMs" | "truncated">, exitCode: number): ProcessCapture {
+  toCapture(
+    meta: Omit<ProcessCaptureMeta, "exitCode" | "durationMs" | "truncated">,
+    exitCode: number,
+  ): ProcessCapture {
     return {
       ...meta,
       exitCode,
